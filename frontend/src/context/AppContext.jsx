@@ -1,32 +1,14 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import axios from "axios";
+import toast from "react-hot-toast";
 
 const AppContext = createContext();
 
-// ─── Seed notifications per role ─────────────────────────────────────────────
-const SEED_NOTIFICATIONS = {
-  admin: [
-    { id:"n1", type:"fee",      title:"Fee overdue — Bikash Karki",       body:"Class 10B fee is 15 days overdue.",                time:"2 min ago",  read:false, link:"/fees" },
-    { id:"n2", type:"message",  title:"New message from Rajesh Sharma",   body:"Question about Aarav's attendance record.",         time:"18 min ago", read:false, link:"/messages" },
-    { id:"n3", type:"homework", title:"Homework posted — Sunita Koirala", body:"Quadratic Equations for 10A due 2082-01-20.",       time:"1 hr ago",   read:false, link:"/homework" },
-    { id:"n4", type:"notice",   title:"Notice published",                 body:"Annual Sports Day notice is now live.",             time:"3 hrs ago",  read:true,  link:"/notices" },
-    { id:"n5", type:"result",   title:"Exam results uploaded",            body:"First Term results for 10A uploaded.",              time:"Yesterday",  read:true,  link:"/results" },
-    { id:"n6", type:"student",  title:"New student enrolled",             body:"Pooja Joshi added to class 7A.",                   time:"2 days ago", read:true,  link:"/students" },
-  ],
-  teacher: [
-    { id:"n1", type:"message",  title:"Message from Rajesh Sharma",       body:"Asking about Aarav's maths performance.",           time:"5 min ago",  read:false, link:"/messages" },
-    { id:"n2", type:"message",  title:"Message from Mohan Thapa",         body:"Query about English homework chapter 7.",           time:"1 hr ago",   read:false, link:"/messages" },
-    { id:"n3", type:"notice",   title:"New school notice",                body:"Annual Sports Day announced for Falgun 15.",        time:"3 hrs ago",  read:true,  link:"/notices" },
-    { id:"n4", type:"calendar", title:"Exam schedule reminder",           body:"Second term exams begin in 3 days.",                time:"Yesterday",  read:true,  link:"/calendar" },
-  ],
-  parent: [
-    { id:"n1", type:"homework", title:"New homework assigned",            body:"Quadratic Equations due 2082-01-20 for 10A.",       time:"30 min ago", read:false, link:"/homework" },
-    { id:"n2", type:"notice",   title:"Important school notice",          body:"Fee submission deadline is Falgun 25.",             time:"2 hrs ago",  read:false, link:"/notices" },
-    { id:"n3", type:"message",  title:"Reply from Sunita Koirala",        body:"Aarav scored 88/100. Keep encouraging him.",        time:"Yesterday",  read:true,  link:"/messages" },
-    { id:"n4", type:"result",   title:"Exam results published",           body:"First Term results are now available.",             time:"2 days ago", read:true,  link:"/results" },
-  ],
-};
+// ─── Axios base config ────────────────────────────────────────────────────────
+// Set your backend URL in .env as REACT_APP_API_URL
+axios.defaults.baseURL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 
-// ─── Default settings ────────────────────────────────────────────────────────
+// ─── Default settings (no hardcoded school-specific data) ────────────────────
 export const DEFAULT_SETTINGS = {
   notifyHomework:     true,
   notifyNotices:      true,
@@ -40,13 +22,6 @@ export const DEFAULT_SETTINGS = {
   showPhone:          false,
   twoFactorOTP:       true,
   sessionTimeout:     "30",
-  defaultClass:       "10A",
-  academicYear:       "2082-83",
-  schoolName:         "SikshyaSanjal Academy",
-  schoolPhone:        "+977-1-4567890",
-  schoolAddress:      "Kathmandu, Nepal",
-  feeReminderDays:    "7",
-  maxOTPAttempts:     "5",
 };
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
@@ -55,35 +30,140 @@ export const AppProvider = ({ children }) => {
   const [school,        setSchool]        = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [settings,      setSettings]      = useState(DEFAULT_SETTINGS);
+  const [authLoading,   setAuthLoading]   = useState(true); // ← FIX: prevents flicker
 
-  const login = (user, schoolData) => {
+  // ── Restore session from localStorage on mount ──────────────────────────────
+  useEffect(() => {
+    const restore = async () => {
+      const token      = localStorage.getItem("ss_token");
+      const schoolSlug = localStorage.getItem("ss_school");
+
+      if (!token || !schoolSlug) {
+        setAuthLoading(false);
+        return;
+      }
+
+      // Attach headers for the validation call
+      axios.defaults.headers.common["Authorization"]    = `Bearer ${token}`;
+      axios.defaults.headers.common["x-school-domain"]  = schoolSlug;
+
+      try {
+        // Validate token against backend — /api/auth/me returns current user
+        const { data } = await axios.get("/auth/me");
+        setCurrentUser(data.user);
+        setSchool(data.school);
+
+        // Restore saved settings if any
+        const savedSettings = localStorage.getItem("ss_settings");
+        if (savedSettings) {
+          setSettings(s => ({ ...s, ...JSON.parse(savedSettings) }));
+        }
+      } catch (err) {
+        // Token invalid or expired — clean up silently
+        localStorage.removeItem("ss_token");
+        localStorage.removeItem("ss_school");
+        delete axios.defaults.headers.common["Authorization"];
+        delete axios.defaults.headers.common["x-school-domain"];
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+    restore();
+  }, []);
+
+  // ── Axios 401 interceptor — auto-logout on expired token ───────────────────
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 401) {
+          // Token expired mid-session
+          handleLogout();
+          toast.error("Your session has expired. Please log in again.");
+        }
+        return Promise.reject(error);
+      }
+    );
+    return () => axios.interceptors.response.eject(interceptor);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Login ──────────────────────────────────────────────────────────────────
+  const login = useCallback((token, user, schoolData) => {
+    // Persist to localStorage
+    localStorage.setItem("ss_token",  token);
+    localStorage.setItem("ss_school", schoolData.slug);
+
+    // Set Axios defaults so every subsequent request is scoped
+    axios.defaults.headers.common["Authorization"]   = `Bearer ${token}`;
+    axios.defaults.headers.common["x-school-domain"] = schoolData.slug;
+
     setCurrentUser(user);
     setSchool(schoolData);
-    setNotifications(SEED_NOTIFICATIONS[user.role] || []);
-  };
+    setNotifications([]); // real notifications fetched from API, not seeded
+  }, []);
 
-  const logout = () => {
+  // ── Logout ─────────────────────────────────────────────────────────────────
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem("ss_token");
+    localStorage.removeItem("ss_school");
+    delete axios.defaults.headers.common["Authorization"];
+    delete axios.defaults.headers.common["x-school-domain"];
     setCurrentUser(null);
     setSchool(null);
     setNotifications([]);
-  };
+    setSettings(DEFAULT_SETTINGS);
+  }, []);
 
-  const markNotifRead    = (id) => setNotifications(p => p.map(n => n.id === id ? { ...n, read:true } : n));
-  const markAllRead      = ()   => setNotifications(p => p.map(n => ({ ...n, read:true })));
-  const clearNotif       = (id) => setNotifications(p => p.filter(n => n.id !== id));
-  const updateSetting    = (key, value) => setSettings(p => ({ ...p, [key]: value }));
-  const unreadCount      = notifications.filter(n => !n.read).length;
+  // ── Notifications ──────────────────────────────────────────────────────────
+  const markNotifRead = useCallback((id) =>
+    setNotifications(p => p.map(n => n.id === id ? { ...n, read: true } : n)), []);
 
-  // Apply dark mode class to body whenever theme setting changes
+  const markAllRead = useCallback(() =>
+    setNotifications(p => p.map(n => ({ ...n, read: true }))), []);
+
+  const clearNotif = useCallback((id) =>
+    setNotifications(p => p.filter(n => n.id !== id)), []);
+
+  const addNotification = useCallback((notif) =>
+    setNotifications(p => [notif, ...p]), []);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  // ── Settings ───────────────────────────────────────────────────────────────
+  const updateSetting = useCallback((key, value) => {
+    setSettings(prev => {
+      const next = { ...prev, [key]: value };
+      localStorage.setItem("ss_settings", JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  // ── Dark mode sync ─────────────────────────────────────────────────────────
   useEffect(() => {
     document.body.classList.toggle("dark", settings.theme === "dark");
   }, [settings.theme]);
 
   return (
     <AppContext.Provider value={{
-      currentUser, school, login, logout,
-      notifications, markNotifRead, markAllRead, clearNotif, unreadCount,
-      settings, updateSetting,
+      // Auth
+      currentUser,
+      school,
+      authLoading,
+      login,
+      logout: handleLogout,
+
+      // Notifications
+      notifications,
+      markNotifRead,
+      markAllRead,
+      clearNotif,
+      addNotification,
+      unreadCount,
+
+      // Settings
+      settings,
+      updateSetting,
     }}>
       {children}
     </AppContext.Provider>
