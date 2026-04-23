@@ -109,7 +109,7 @@ export default function LoginPage() {
     setLoading(true);
     setErrors({});
     try {
-      const { data } = await axios.get(`/auth/school/${slug}`);
+      const { data } = await axios.get(`/api/auth/school/${slug}`);
       setSchoolInfo(data.school);
       setStep("role");
     } catch (err) {
@@ -130,7 +130,7 @@ export default function LoginPage() {
     setErrors({});
     try {
       const { data } = await axios.post(
-        "/auth/parent/send-otp",
+        "/api/auth/parent/send-otp",
         { phone },
         { headers: { "x-school-domain": schoolInfo.slug } }
       );
@@ -177,13 +177,13 @@ export default function LoginPage() {
       if (selectedRole === "parent") {
         if (parentMode === "otp") {
           res = await axios.post(
-            "/auth/parent/verify-otp",
+            "/api/auth/parent/verify-otp",
             { phone, otp, otpToken },
             { headers: { "x-school-domain": schoolInfo.slug } }
           );
         } else {
           res = await axios.post(
-            "/auth/parent/login",
+            "/api/auth/parent/login",
             { phone, password },
             { headers: { "x-school-domain": schoolInfo.slug } }
           );
@@ -191,7 +191,7 @@ export default function LoginPage() {
       } else {
         // Admin & Teacher use email + password (Google OAuth handled separately)
         res = await axios.post(
-          "/auth/login",
+          "/api/auth/login",
           { email, password, role: selectedRole },
           { headers: { "x-school-domain": schoolInfo.slug } }
         );
@@ -219,7 +219,7 @@ export default function LoginPage() {
   function handleGoogleLogin() {
     if (!schoolInfo) return;
     // Redirect to backend Google OAuth with school slug as state
-    window.location.href = `${process.env.REACT_APP_API_URL}/auth/google?school=${schoolInfo.slug}&role=${selectedRole}`;
+    window.location.href = `${process.env.REACT_APP_API_URL}/api/auth/google?school=${schoolInfo.slug}&role=${selectedRole}`;
   }
 
   // ─────────────────────────────────────────────────────────────────────────

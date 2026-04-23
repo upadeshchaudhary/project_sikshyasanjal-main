@@ -6,6 +6,7 @@ const helmet     = require("helmet");
 const morgan     = require("morgan");
 const rateLimit  = require("express-rate-limit");
 require("dotenv").config();
+console.log("MONGO_URI:", process.env.MONGO_URI);
 
 // ── Validate required environment variables on startup ──────────────────────
 const REQUIRED_ENV = [
@@ -141,9 +142,9 @@ app.use("/api/fees",       require("./routes/fees"));
 app.use("/api/messages",   require("./routes/messages"));
 app.use("/api/routine",    require("./routes/routine"));
 app.use("/api/calendar",   require("./routes/calendar"));
-app.use("/api/settings",   require("./routes/settings"));   // ADDED
-app.use("/api/dashboard",  require("./routes/dashboard"));  // ADDED
-app.use("/api/search",     require("./routes/search"));     // ADDED
+// app.use("/api/settings",   require("./routes/settings"));   // ADDED
+// app.use("/api/dashboard",  require("./routes/dashboard"));  // ADDED
+// app.use("/api/search",     require("./routes/search"));     // ADDED
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get("/api/health", (_req, res) =>
