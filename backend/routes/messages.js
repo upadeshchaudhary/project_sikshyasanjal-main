@@ -12,11 +12,36 @@ function isValidId(id) {
   return mongoose.Types.ObjectId.isValid(id);
 }
 
+// Whitelisted fields for message creation
+const ALLOWED_CREATE = ["to", "subject", "body", "parentMsg"];
+
+function pickFields(body, allowed) {
+  return allowed.reduce((acc, key) => {
+    if (body[key] !== undefined) acc[key] = body[key];
+    return acc;
+  }, {});
+}
+
+// ── Role-based messaging rules ────────────────────────────────────────────────
+// Returns allowed recipient roles for the sender's role
+function getAllowedRecipientRoles(senderRole) {
+  switch (senderRole) {
+    case "admin":
+      return ["admin", "teacher", "parent"]; // admin can message anyone
+    case "teacher":
+      return ["admin", "parent", "teacher"]; // teacher can message admin, parents, other teachers
+    case "parent":
+      return ["teacher", "admin"]; // parent can only message teachers and admin
+    default:
+      return [];
+  }
+}
+
 // ════════════════════════════════════════════════════════════════════════════════
 // GET /api/messages/unread-count
 // Returns unread message count for the current user
-// Used by Sidebar badge and AppContext
-// MUST be defined BEFORE /:id routes to prevent "unread-count" being treated as an ID
+// Used by Sidebar and Topbar badge
+// MUST be defined before /:id routes to avoid param collision
 // ════════════════════════════════════════════════════════════════════════════════
 router.get("/unread-count", async (req, res) => {
   try {
@@ -26,7 +51,7 @@ router.get("/unread-count", async (req, res) => {
       school:            req.school._id,
       to:                userId,
       isReadByRecipient: false,
-      deletedByRecipient: false,
+      deletedByRecipient: { $ne: true },
     });
 
     res.json({ success: true, count });
@@ -37,102 +62,94 @@ router.get("/unread-count", async (req, res) => {
 
 // ════════════════════════════════════════════════════════════════════════════════
 // GET /api/messages/contacts
-// Returns list of users this user can message within the same school
-// Role rules:
-//   Parent  → can message teachers + admin only
-//   Teacher → can message parents + admin + other teachers
-//   Admin   → can message anyone
+// Returns list of users this person can message
+// Role-scoped: parents can only see teachers+admin, teachers can see parents+admin+teachers
 // ════════════════════════════════════════════════════════════════════════════════
 router.get("/contacts", async (req, res) => {
   try {
-    const { role, userId, schoolId } = req.user;
+    const { role, userId } = req.user;
+    const allowedRoles = getAllowedRecipientRoles(role);
 
-    let roleFilter;
-    if (role === "parent") {
-      // Parents can only initiate contact with teachers and admin
-      roleFilter = { $in: ["teacher", "admin"] };
-    } else if (role === "teacher") {
-      roleFilter = { $in: ["parent", "admin", "teacher"] };
-    } else {
-      // Admin can message anyone
-      roleFilter = { $in: ["admin", "teacher", "parent"] };
-    }
-
-    const contacts = await User.find({
-      school:     schoolId,
-      role:       roleFilter,
+    // Parent: can only message their child's teachers (not all teachers)
+    // Admin/Teacher: can message anyone in allowed roles
+    let filter = {
+      school:     req.school._id,
+      role:       { $in: allowedRoles },
+      _id:        { $ne: userId },   // exclude self
       isDisabled: false,
-      _id:        { $ne: userId }, // exclude self
-    })
-      .select("name role avatar class childName")
+    };
+
+    const contacts = await User.find(filter)
+      .select("name role email phone class")
       .sort({ role: 1, name: 1 })
       .lean();
 
-    // Group by role for the compose UI
-    const grouped = contacts.reduce((acc, u) => {
-      const key = u.role;
-      acc[key] = acc[key] || [];
-      acc[key].push(u);
-      return acc;
-    }, {});
-
-    res.json({ success: true, contacts, grouped });
+    res.json({ success: true, contacts });
   } catch (err) {
     res.status(500).json({ success: false, message: "Failed to fetch contacts." });
   }
 });
 
 // ════════════════════════════════════════════════════════════════════════════════
-// GET /api/messages — Inbox: top-level messages (not replies)
-// Returns conversations the user is part of (sent or received)
+// GET /api/messages — Inbox: top-level conversations only (no thread replies)
+// Returns messages where current user is sender or recipient
 // ════════════════════════════════════════════════════════════════════════════════
 router.get("/", async (req, res) => {
   try {
+    // FIXED: use req.user.userId not req.user._id
     const { userId } = req.user;
+
+    const filter = {
+      school: req.school._id,
+      $or:    [{ from: userId }, { to: userId }],
+      // FIXED: correct field name is parentMsg not parentMessage
+      parentMsg: null,  // top-level messages only
+      // Exclude messages soft-deleted by this user
+      $and: [
+        { $or: [
+          { from: { $ne: userId } },
+          { deletedBySender: { $ne: true } },
+        ]},
+        { $or: [
+          { to: { $ne: userId } },
+          { deletedByRecipient: { $ne: true } },
+        ]},
+      ],
+    };
+
+    // Optional: filter by read/unread
+    if (req.query.unread === "true") {
+      filter.to               = userId;
+      filter.isReadByRecipient = false;
+    }
 
     const page  = Math.max(1, parseInt(req.query.page,  10) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const skip  = (page - 1) * limit;
 
-    // FIXED: use userId (string from JWT), not req.user._id
-    // FIXED: use parentMsg field name (matches model schema)
-    // FIXED: exclude soft-deleted messages for this user
-    const baseFilter = {
-      school:   req.school._id,
-      parentMsg: null,           // top-level messages only (null, not {$exists:false})
-      $or: [
-        { from: userId, deletedBySender:    false },
-        { to:   userId, deletedByRecipient: false },
-      ],
-    };
-
     const [messages, total] = await Promise.all([
-      Message.find(baseFilter)
-        .populate("from", "name role avatar")
-        .populate("to",   "name role avatar")
+      Message.find(filter)
+        .populate("from", "name role")
+        .populate("to",   "name role")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
-      Message.countDocuments(baseFilter),
+      Message.countDocuments(filter),
     ]);
 
-    // Annotate each message with reply count and last reply time
+    // Annotate each message with reply count
     const messageIds = messages.map(m => m._id);
     const replyCounts = await Message.aggregate([
       { $match: { school: req.school._id, parentMsg: { $in: messageIds } } },
-      { $group: { _id: "$parentMsg", count: { $sum: 1 }, lastAt: { $max: "$createdAt" } } },
+      { $group: { _id: "$parentMsg", count: { $sum: 1 } } },
     ]);
-
     const replyMap = {};
-    replyCounts.forEach(r => {
-      replyMap[r._id.toString()] = { count: r.count, lastAt: r.lastAt };
-    });
+    replyCounts.forEach(r => { replyMap[r._id.toString()] = r.count; });
 
     const annotated = messages.map(m => ({
       ...m,
-      replyCount: replyMap[m._id.toString()]?.count || 0,
-      lastReplyAt: replyMap[m._id.toString()]?.lastAt || null,
+      replyCount: replyMap[m._id.toString()] || 0,
     }));
 
     res.json({
@@ -148,34 +165,34 @@ router.get("/", async (req, res) => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════════
-// GET /api/messages/:id/thread
-// Returns the root message + all replies in chronological order
-// Only accessible to the sender and recipient of the root message
+// GET /api/messages/:id — Single message with full thread
+// Only accessible to participants (from or to)
 // ════════════════════════════════════════════════════════════════════════════════
-router.get("/:id/thread", async (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
     if (!isValidId(req.params.id)) {
       return res.status(400).json({ success: false, message: "Invalid message ID." });
     }
 
     const { userId } = req.user;
-    const messageId = req.params.id;
 
-    // Fetch root message first to verify access
+    // Fetch the root message
     const root = await Message.findOne({
-      _id:      messageId,
-      school:   req.school._id,
-      parentMsg: null, // must be a root message
-    }).lean();
+      _id:    req.params.id,
+      school: req.school._id,
+    })
+      .populate("from", "name role")
+      .populate("to",   "name role")
+      .lean();
 
     if (!root) {
-      return res.status(404).json({ success: false, message: "Conversation not found." });
+      return res.status(404).json({ success: false, message: "Message not found." });
     }
 
-    // FIXED: verify requesting user is part of this conversation
+    // FIXED: enforce participant-only access
     const isParticipant =
-      root.from.toString() === userId.toString() ||
-      root.to.toString()   === userId.toString();
+      root.from._id.toString() === userId.toString() ||
+      root.to._id.toString()   === userId.toString();
 
     if (!isParticipant) {
       return res.status(403).json({
@@ -184,62 +201,76 @@ router.get("/:id/thread", async (req, res) => {
       });
     }
 
-    // Fetch all messages in thread (root + replies)
-    // FIXED: use parentMsg field name (matches model schema)
-    const thread = await Message.find({
-      school: req.school._id,
-      $or: [
-        { _id:       messageId },
-        { parentMsg: messageId },
-      ],
+    // Auto-mark as read if current user is the recipient
+    if (root.to._id.toString() === userId.toString() && !root.isReadByRecipient) {
+      await Message.findByIdAndUpdate(req.params.id, {
+        // FIXED: correct field name isReadByRecipient
+        $set: { isReadByRecipient: true },
+      });
+      root.isReadByRecipient = true;
+    }
+
+    // Fetch the full thread (replies)
+    const replies = await Message.find({
+      school:   req.school._id,
+      // FIXED: correct field name parentMsg
+      parentMsg: req.params.id,
     })
-      .populate("from", "name role avatar")
-      .populate("to",   "name role avatar")
-      .sort({ createdAt: 1 }) // chronological order
+      .populate("from", "name role")
+      .populate("to",   "name role")
+      .sort({ createdAt: 1 })
       .lean();
 
-    // Auto-mark all unread messages in this thread as read
-    await Message.updateMany(
-      {
-        school:            req.school._id,
-        $or: [{ _id: messageId }, { parentMsg: messageId }],
-        to:                userId,
-        isReadByRecipient: false,
-      },
-      { $set: { isReadByRecipient: true } }
-    );
+    // Mark all replies as read for this user
+    const unreadReplyIds = replies
+      .filter(r => r.to?.toString() === userId.toString() && !r.isReadByRecipient)
+      .map(r => r._id);
 
-    res.json({ success: true, thread, count: thread.length });
+    if (unreadReplyIds.length > 0) {
+      await Message.updateMany(
+        { _id: { $in: unreadReplyIds } },
+        { $set: { isReadByRecipient: true } }
+      );
+    }
+
+    res.json({
+      success:  true,
+      message:  root,
+      replies,
+      thread:   [root, ...replies],
+    });
   } catch (err) {
-    res.status(500).json({ success: false, message: "Failed to fetch conversation." });
+    res.status(500).json({ success: false, message: "Failed to fetch thread." });
   }
 });
 
 // ════════════════════════════════════════════════════════════════════════════════
 // POST /api/messages — Send a new message or reply
+// Validates recipient role, participant membership, and required fields
 // ════════════════════════════════════════════════════════════════════════════════
 router.post("/", async (req, res) => {
   try {
-    const { userId, role, schoolId } = req.user;
-    const { to, subject, body, parentMsg } = req.body;
+    const { userId, role } = req.user;
+    const { to, body, subject, parentMsg } = req.body;
 
-    // Validate required fields
+    // Required field validation
     if (!to || !isValidId(to)) {
       return res.status(400).json({ success: false, message: "Valid recipient ID is required." });
     }
     if (!body?.trim()) {
       return res.status(400).json({ success: false, message: "Message body is required." });
     }
-    if (to === userId) {
-      return res.status(400).json({ success: false, message: "You cannot message yourself." });
+
+    // Cannot message yourself
+    if (to.toString() === userId.toString()) {
+      return res.status(400).json({ success: false, message: "You cannot send a message to yourself." });
     }
 
-    // FIXED: verify recipient exists and belongs to this school
+    // Fetch recipient to validate role and school membership
     const recipient = await User.findOne({
-      _id:        to,
-      school:     schoolId,
-      isDisabled: false,
-    }).select("_id name role").lean();
+      _id:    to,
+      school: req.school._id,
+    }).select("name role isDisabled").lean();
 
     if (!recipient) {
       return res.status(404).json({
@@ -248,78 +279,88 @@ router.post("/", async (req, res) => {
       });
     }
 
-    // Role-based messaging restrictions
-    // Parents can only message teachers and admins (not other parents)
-    if (role === "parent" && recipient.role === "parent") {
+    if (recipient.isDisabled) {
+      return res.status(400).json({
+        success: false,
+        message: "This user's account is disabled and cannot receive messages.",
+      });
+    }
+
+    // FIXED: role-based messaging restriction
+    const allowedRoles = getAllowedRecipientRoles(role);
+    if (!allowedRoles.includes(recipient.role)) {
       return res.status(403).json({
         success: false,
-        message: "Parents can only message teachers and school administrators.",
+        message: `As a ${role}, you cannot send messages to a ${recipient.role}.`,
       });
     }
 
     // If this is a reply, validate the parent message
-    let validatedParentMsg = null;
     if (parentMsg) {
       if (!isValidId(parentMsg)) {
         return res.status(400).json({ success: false, message: "Invalid parent message ID." });
       }
 
-      const parentMessage = await Message.findOne({
+      const parent = await Message.findOne({
         _id:    parentMsg,
         school: req.school._id,
       }).lean();
 
-      if (!parentMessage) {
-        return res.status(404).json({
-          success: false,
-          message: "Parent message not found.",
-        });
+      if (!parent) {
+        return res.status(404).json({ success: false, message: "Original message not found." });
       }
 
-      // Verify user is part of the original conversation
-      const isParticipant =
-        parentMessage.from.toString() === userId.toString() ||
-        parentMessage.to.toString()   === userId.toString();
+      // Validate current user is a participant in the parent thread
+      const parentFrom = parent.from?.toString();
+      const parentTo   = parent.to?.toString();
+      const isParentParticipant =
+        parentFrom === userId.toString() ||
+        parentTo   === userId.toString();
 
-      if (!isParticipant) {
+      if (!isParentParticipant) {
         return res.status(403).json({
           success: false,
           message: "You cannot reply to a conversation you are not part of.",
         });
       }
 
-      validatedParentMsg = parentMsg;
+      // Replies go to the other participant in the thread
+      const expectedTo = parentFrom === userId.toString() ? parentTo : parentFrom;
+      if (to.toString() !== expectedTo?.toString()) {
+        return res.status(400).json({
+          success: false,
+          message: "Reply must be directed to the other participant in this thread.",
+        });
+      }
     }
 
-    // FIXED: Only set safe, whitelisted fields — no req.body spread
+    // FIXED: field whitelisting — no req.body spread
     const message = await Message.create({
       school:            req.school._id,
-      from:              userId,          // FIXED: userId from JWT
+      from:              userId,       // FIXED: use userId from JWT
       to,
       subject:           subject?.trim()?.slice(0, 200) || "",
-      body:              body.trim().slice(0, 5000),   // cap message length
-      parentMsg:         validatedParentMsg,
+      body:              body.trim(),
+      parentMsg:         parentMsg || null,  // FIXED: correct field name
       isReadByRecipient: false,
-      deletedBySender:   false,
-      deletedByRecipient: false,
     });
 
     await message.populate([
-      { path: "from", select: "name role avatar" },
-      { path: "to",   select: "name role avatar" },
+      { path: "from", select: "name role" },
+      { path: "to",   select: "name role" },
     ]);
 
     res.status(201).json({ success: true, message });
   } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: "Failed to send message." });
   }
 });
 
 // ════════════════════════════════════════════════════════════════════════════════
-// PUT /api/messages/:id/read — Mark a message as read
-// Only the recipient can mark as read
+// PATCH /api/messages/:id/read — Mark a message as read
+// Only the recipient can mark their own message as read
 // ════════════════════════════════════════════════════════════════════════════════
-router.put("/:id/read", async (req, res) => {
+router.patch("/:id/read", async (req, res) => {
   try {
     if (!isValidId(req.params.id)) {
       return res.status(400).json({ success: false, message: "Invalid message ID." });
@@ -327,17 +368,16 @@ router.put("/:id/read", async (req, res) => {
 
     const { userId } = req.user;
 
-    // FIXED: use isReadByRecipient (matches model schema)
-    // FIXED: use userId not req.user._id
     const message = await Message.findOneAndUpdate(
       {
         _id:    req.params.id,
         school: req.school._id,
-        to:     userId,
+        to:     userId,          // only recipient can mark as read
       },
+      // FIXED: correct field name isReadByRecipient
       { $set: { isReadByRecipient: true } },
       { new: true }
-    ).lean();
+    );
 
     if (!message) {
       return res.status(404).json({
@@ -353,36 +393,40 @@ router.put("/:id/read", async (req, res) => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════════
-// PUT /api/messages/read-all — Mark all unread messages as read
+// PATCH /api/messages/:id/read-all — Mark all messages in a thread as read
 // ════════════════════════════════════════════════════════════════════════════════
-router.put("/read-all", async (req, res) => {
+router.patch("/:id/read-all", async (req, res) => {
   try {
+    if (!isValidId(req.params.id)) {
+      return res.status(400).json({ success: false, message: "Invalid message ID." });
+    }
+
     const { userId } = req.user;
 
+    // Mark root + all replies in this thread as read
     const result = await Message.updateMany(
       {
-        school:            req.school._id,
-        to:                userId,
-        isReadByRecipient: false,
+        school: req.school._id,
+        to:     userId,
+        $or:    [{ _id: req.params.id }, { parentMsg: req.params.id }],
       },
       { $set: { isReadByRecipient: true } }
     );
 
     res.json({
       success:  true,
-      message:  `${result.modifiedCount} message(s) marked as read.`,
       modified: result.modifiedCount,
+      message:  "Thread marked as read.",
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: "Failed to mark messages as read." });
+    res.status(500).json({ success: false, message: "Failed to mark thread as read." });
   }
 });
 
 // ════════════════════════════════════════════════════════════════════════════════
 // DELETE /api/messages/:id — Soft delete a message
-// Sender can delete from their sent view
-// Recipient can delete from their inbox
-// Message is only truly gone when both sides have deleted it
+// Sender can delete their sent message, recipient can delete from their inbox
+// Does not delete from the other party's view
 // ════════════════════════════════════════════════════════════════════════════════
 router.delete("/:id", async (req, res) => {
   try {
@@ -392,34 +436,31 @@ router.delete("/:id", async (req, res) => {
 
     const { userId } = req.user;
 
-    const existing = await Message.findOne({
+    const message = await Message.findOne({
       _id:    req.params.id,
       school: req.school._id,
-      $or: [{ from: userId }, { to: userId }],
+      $or:    [{ from: userId }, { to: userId }],
     }).lean();
 
-    if (!existing) {
+    if (!message) {
       return res.status(404).json({
         success: false,
-        message: "Message not found or you are not part of this conversation.",
+        message: "Message not found or you are not a participant.",
       });
     }
 
-    const isSender    = existing.from.toString() === userId.toString();
-    const isRecipient = existing.to.toString()   === userId.toString();
+    const isSender    = message.from?.toString() === userId.toString();
+    const isRecipient = message.to?.toString()   === userId.toString();
 
-    const update = {};
-    if (isSender)    update.deletedBySender    = true;
-    if (isRecipient) update.deletedByRecipient = true;
+    const updateOp = {};
+    if (isSender)    updateOp.deletedBySender    = true;
+    if (isRecipient) updateOp.deletedByRecipient = true;
 
-    // Hard delete only when both sides have deleted
-    const updatedMsg = await Message.findOneAndUpdate(
-      { _id: req.params.id },
-      { $set: update },
-      { new: true }
-    ).lean();
+    await Message.findByIdAndUpdate(req.params.id, { $set: updateOp });
 
-    if (updatedMsg.deletedBySender && updatedMsg.deletedByRecipient) {
+    // If both sides deleted, hard delete the document
+    const updated = await Message.findById(req.params.id).lean();
+    if (updated?.deletedBySender && updated?.deletedByRecipient) {
       await Message.findByIdAndDelete(req.params.id);
     }
 

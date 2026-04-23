@@ -1,6 +1,3 @@
-// backend/routes/routine.js
-//
-// FULL REWRITE — original stub had zero scheduling logic.
 // This file implements:
 //   - Full constraint validation engine
 //   - Auto-generation of weekly timetables
