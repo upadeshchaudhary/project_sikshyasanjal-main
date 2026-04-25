@@ -142,9 +142,9 @@ app.use("/api/fees",       require("./routes/fees"));
 app.use("/api/messages",   require("./routes/messages"));
 app.use("/api/routine",    require("./routes/routine"));
 app.use("/api/calendar",   require("./routes/calendar"));
-// app.use("/api/settings",   require("./routes/settings"));   // ADDED
-// app.use("/api/dashboard",  require("./routes/dashboard"));  // ADDED
-// app.use("/api/search",     require("./routes/search"));     // ADDED
+app.use("/api/settings",   require("./routes/settings"));   // ADDED
+app.use("/api/dashboard",  require("./routes/dashboard"));  // ADDED
+app.use("/api/search",     require("./routes/search"));     // ADDED
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get("/api/health", (_req, res) =>

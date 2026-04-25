@@ -1,3 +1,4 @@
+// AppContext.jsx - Centralized state management for auth, notifications, and settings with session persistence and Axios integration.
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";

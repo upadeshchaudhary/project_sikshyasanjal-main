@@ -28,6 +28,97 @@ A full-stack web application that digitizes day-to-day academic and administrati
 ```
 sikshyasanjal/
 
+
+backend/
+├── .env                         
+├── package-lock.json                 
+├── package.json                 
+├── server.js                    
+│
+├── middleware/
+│   ├── auth.js                  
+│   └── school.js                
+│
+├── models/
+│   ├── index.js                 
+│   ├── School.js                
+│   ├── User.js                  
+│   ├── Student.js               
+│   ├── Homework.js              
+│   ├── Notice.js                  
+│   ├── Attendance.js              
+│   ├── ExamResult.js              
+│   ├── FeeRecord.js               
+│   ├── Message.js                 
+│   ├── ClassRoutine.js            
+│   └── AcademicCalendar.js        
+│
+└── routes/
+    ├── auth.js                    
+    ├── students.js                
+    ├── teachers.js                
+    ├── homework.js                
+    ├── attendance.js              
+    ├── notices.js                 
+    ├── results.js                 
+    ├── fees.js                    
+    ├── routine.js                
+    ├── messages.js                
+    ├── calendar.js                
+    ├── settings.js                
+    ├── dashboard.js               
+    └── search.js                    
+
+
+frontend/src/
+├── .env                         
+├── App.jsx                        
+├── index.css    
+├── index.js
+│
+├── data
+│   └── mockData.js
+│
+├── context/
+│   └── AppContext.jsx             
+│
+├── components/
+│   ├── Sidebar.jsx                
+│   └── Topbar.jsx                 
+│
+├── pages/
+│   ├── LoginPage.jsx              
+│   ├── GoogleCallbackPage.jsx     
+│   ├── DashboardPage.jsx          
+│   ├── AttendancePage.jsx         
+│   ├── StudentsPage.jsx          
+│   ├── HomeworkPage.jsx            
+│   ├── NoticesPage.jsx             
+│   ├── ResultsPage.jsx             
+│   ├── FeesPage.jsx                
+│   ├── MessagesPage.jsx            
+│   ├── TeachersPage.jsx            
+│   ├── RoutinePage.jsx             
+│   ├── CalendarPage.jsx            
+│   └── SettingsPage.jsx            
+│
+└── utils/
+    └── calendar.js             
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ├── frontend/                   # React frontend
 │
 ├── src/                        

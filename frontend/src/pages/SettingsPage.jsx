@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Topbar from "../components/Topbar";
 import { useApp } from "../context/AppContext";
 import toast from "react-hot-toast";
+import axios from "axios";
 import {
   Bell, Shield, Globe, Palette, School, BookOpen,
   User, ChevronRight, Check, Save, LogOut,
@@ -78,22 +79,41 @@ function Section({ title, desc, children }) {
 
 // ─── Profile Tab ──────────────────────────────────────────────────────────────
 function ProfileTab({ currentUser }) {
-  const isParent = currentUser?.role === "parent";
+  const isParent  = currentUser?.role === "parent";
+  const isTeacher = currentUser?.role === "teacher";
+
   const [form, setForm] = useState({
     name:  currentUser?.name  || "",
     email: currentUser?.email || "",
     phone: currentUser?.phone || "",
   });
   const [showPhone, setShowPhone] = useState(false);
+  const [saving, setSaving]       = useState(false);
 
-  const handleSave = () => toast.success("Profile updated successfully");
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const url = isTeacher ? "/teachers/me" : "/settings/profile";
+      await axios.put(url, { name: form.name, phone: form.phone });
+      toast.success("Profile updated successfully.");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to update profile.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <>
       <Section title="Personal Information" desc="Your name and contact details visible to other users.">
 
         {/* Name — locked for parents */}
-        <SettingRow label="Full Name" desc={isParent ? "Your name as registered with the school. Contact admin to update." : "Displayed across the platform."}>
+        <SettingRow
+          label="Full Name"
+          desc={isParent
+            ? "Your name as registered with the school. Contact admin to update."
+            : "Displayed across the platform."}
+        >
           {isParent ? (
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: 13, color: "var(--text)", fontWeight: 500 }}>{form.name}</span>
@@ -127,15 +147,25 @@ function ProfileTab({ currentUser }) {
               value={form.phone}
               onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
             />
-            <button className="btn btn-ghost btn-sm" onClick={() => setShowPhone(v => !v)} style={{ padding: "7px 9px" }}>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => setShowPhone(v => !v)}
+              style={{ padding: "7px 9px" }}
+            >
               {showPhone ? <EyeOff size={14} /> : <Eye size={14} />}
             </button>
           </div>
         </SettingRow>
 
         <div style={{ paddingTop: 16 }}>
-          <button className="btn btn-primary btn-sm" onClick={handleSave} style={{ gap: 6 }}>
-            <Save size={13} /> Save Changes
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={handleSave}
+            disabled={saving}
+            style={{ gap: 6 }}
+          >
+            <Save size={13} />
+            {saving ? "Saving..." : "Save Changes"}
           </button>
         </div>
       </Section>
@@ -209,7 +239,6 @@ function AcademicTab({ settings, updateSetting, role, currentUser }) {
           </select>
         </SettingRow>
 
-        {/* Parent: show locked child info */}
         {role === "parent" && (
           <>
             <SettingRow label="Enrolled Student" desc="Your child's name as registered with the school. Contact admin to update.">
@@ -229,7 +258,6 @@ function AcademicTab({ settings, updateSetting, role, currentUser }) {
           </>
         )}
 
-        {/* Admin / teacher: editable default class */}
         {role !== "parent" && role !== "admin" && (
           <SettingRow label="Default Class View" desc="Which class to show first when opening class-based pages.">
             <select
@@ -388,8 +416,8 @@ function SecurityTab({ settings, updateSetting, role }) {
       <Section title="Active Sessions" desc="Devices currently logged into your account.">
         <div style={{ padding: "8px 0" }}>
           {[
-            { device: "Chrome on Windows", location: "Dharan, Koshi", time: "Now (this session)", current: true },
-            { device: "Mobile Browser", location: "Biratnagar, Koshi", time: "2 hours ago", current: false },
+            { device: "Chrome on Windows", location: "Dharan, Koshi",     time: "Now (this session)", current: true  },
+            { device: "Mobile Browser",    location: "Biratnagar, Koshi", time: "2 hours ago",        current: false },
           ].map((s, i) => (
             <div key={i} style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -418,15 +446,34 @@ function SecurityTab({ settings, updateSetting, role }) {
 
 // ─── School Config Tab (admin only) ──────────────────────────────────────────
 function SchoolTab({ settings, updateSetting }) {
-  const [form, setForm] = useState({
-    schoolName:    settings.schoolName,
-    schoolPhone:   settings.schoolPhone,
-    schoolAddress: settings.schoolAddress,
-  });
+  const [form, setForm]     = useState({ phone: "", email: "", address: "" });
+  const [school, setSchool] = useState(null);
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
-    Object.entries(form).forEach(([k, v]) => updateSetting(k, v));
-    toast.success("School information updated");
+  useEffect(() => {
+    axios.get("/settings")
+      .then(res => {
+        const s = res.data.school;
+        setSchool(s);
+        setForm({
+          phone:   s.phone   || "",
+          email:   s.email   || "",
+          address: s.address || "",
+        });
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await axios.put("/settings/school", form);
+      toast.success("School settings updated.");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to save school settings.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -437,7 +484,7 @@ function SchoolTab({ settings, updateSetting }) {
             <input
               className="form-input"
               style={{ width: 280, padding: "7px 12px", fontSize: 13, opacity: 0.6, cursor: "not-allowed" }}
-              value={form.schoolName}
+              value={school?.name || ""}
               disabled
             />
             <span className="tag tag-gray" style={{ fontSize: 10, whiteSpace: "nowrap" }}>🔒 Locked</span>
@@ -447,20 +494,36 @@ function SchoolTab({ settings, updateSetting }) {
           <input
             className="form-input"
             style={{ width: 200, padding: "7px 12px", fontSize: 13 }}
-            value={form.schoolPhone}
-            onChange={e => setForm(p => ({ ...p, schoolPhone: e.target.value }))}
+            value={form.phone}
+            onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
+          />
+        </SettingRow>
+        <SettingRow label="School Email">
+          <input
+            className="form-input"
+            style={{ width: 240, padding: "7px 12px", fontSize: 13 }}
+            value={form.email}
+            onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
           />
         </SettingRow>
         <SettingRow label="School Address">
           <input
             className="form-input"
             style={{ width: 280, padding: "7px 12px", fontSize: 13 }}
-            value={form.schoolAddress}
-            onChange={e => setForm(p => ({ ...p, schoolAddress: e.target.value }))}
+            value={form.address}
+            onChange={e => setForm(p => ({ ...p, address: e.target.value }))}
           />
         </SettingRow>
         <div style={{ paddingTop: 14 }}>
-          <button className="btn btn-primary btn-sm" onClick={handleSave}><Save size={13} /> Save School Info</button>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={handleSave}
+            disabled={saving}
+            style={{ gap: 6 }}
+          >
+            <Save size={13} />
+            {saving ? "Saving..." : "Save School Info"}
+          </button>
         </div>
       </Section>
 
@@ -485,7 +548,7 @@ function SchoolTab({ settings, updateSetting }) {
 
       <Section title="Multi-Tenant Domain" desc="Your school's domain slug. Contact platform admin to change.">
         <SettingRow label="School Domain Slug" desc="Used in the x-school-domain header for all API calls.">
-          <span className="tag tag-gray mono">saraswati</span>
+          <span className="tag tag-gray mono">{school?.domain || ""}</span>
         </SettingRow>
         <SettingRow label="Domain Isolation" desc="Each school's data is fully isolated from others.">
           <span className="tag tag-green"><Check size={10} /> Active</span>
@@ -551,8 +614,8 @@ function FeeTab({ settings, updateSetting }) {
 // ─── Main Settings Page ───────────────────────────────────────────────────────
 export default function SettingsPage() {
   const { currentUser, settings, updateSetting, logout } = useApp();
-  const navigate  = useNavigate();
-  const role      = currentUser?.role || "parent";
+  const navigate    = useNavigate();
+  const role        = currentUser?.role || "parent";
   const visibleTabs = TABS.filter(t => t.roles.includes(role));
   const [activeTab, setActiveTab] = useState(visibleTabs[0].key);
 
@@ -591,7 +654,7 @@ export default function SettingsPage() {
             <div className="card">
               <div style={{ padding: "8px 8px" }}>
                 {visibleTabs.map(tab => {
-                  const Icon    = tab.icon;
+                  const Icon     = tab.icon;
                   const isActive = activeTab === tab.key;
                   return (
                     <button

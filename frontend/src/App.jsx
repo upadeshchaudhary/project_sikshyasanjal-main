@@ -1,3 +1,4 @@
+// App.jsx - Main application component with routing, role-based access control, and auth-aware shell.
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { AppProvider, useApp } from "./context/AppContext";

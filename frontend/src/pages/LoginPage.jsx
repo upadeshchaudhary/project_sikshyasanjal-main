@@ -1,3 +1,4 @@
+// LoginPage.jsx - Multi-step login flow with domain verification, role selection, and OTP support for parents.
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
