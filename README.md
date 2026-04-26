@@ -1,357 +1,519 @@
-# SikshyaSanjal 🏫
-### School Management Platform for Nepali Schools
+<div align="center">
 
-A full-stack web application that digitizes day-to-day academic and administrative operations for schools in Nepal. Multi-tenant, role-based, and built for low-bandwidth mobile access.
+# 🏫 SikshyaSanjal
+### School Management Web Application for Nepali Educational Institutions
+
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-Express-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://mongodb.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS_v3-06B6D4?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
+
+**SikshyaSanjal** is a multi-tenant, role-based school management web application designed for Nepali schools. It digitizes attendance, homework, exam results, fees, notices, and parent–teacher communication — all in one centralized platform.
+
+> 🎓 Final Year Capstone Project · BIT Program · CCT Dharan, Tribhuvan University · 2026
+
+</div>
 
 ---
 
-## Tech Stack
+## 📚 Table of Contents
 
-| Layer | Technology |
+- [Overview](#-overview)
+- [Features](#-features)
+- [Tech Stack](#-tech-stack)
+- [Project Structure](#-project-structure)
+- [Prerequisites](#-prerequisites)
+- [Getting Started](#-getting-started)
+  - [1. Clone the Repository](#1-clone-the-repository)
+  - [2. Backend Setup](#2-backend-setup)
+  - [3. Frontend Setup](#3-frontend-setup)
+  - [4. Seed the Database](#4-seed-the-database)
+  - [5. Run the Application](#5-run-the-application)
+- [Environment Variables](#-environment-variables)
+- [Authentication Flow](#-authentication-flow)
+- [Multi-Tenancy](#-multi-tenancy)
+- [Role Permissions](#-role-permissions)
+- [API Overview](#-api-overview)
+- [Deployment](#-deployment)
+- [Screenshots](#-screenshots)
+- [Contributing](#-contributing)
+- [License](#-license)
+
+---
+
+## 🌐 Overview
+
+Most schools in Nepal still rely on physical registers, printed notices, and phone calls for academic updates. SikshyaSanjal replaces this with a centralized, role-aware web platform accessible from any device.
+
+Each school operates on its **own completely isolated instance** using a unique domain slug. A parent opens the app and immediately sees their child's attendance, homework, and fee dues. A teacher marks attendance and messages parents from one screen. An admin has a live overview of the entire institution.
+
+---
+
+## ✨ Features
+
+| Feature | Admin | Teacher | Parent |
+|---|:---:|:---:|:---:|
+| Dashboard (role-specific) | ✅ | ✅ | ✅ |
+| Student Management | ✅ Full CRUD | ✅ View | ✅ Own child |
+| Teacher Management | ✅ Full CRUD | ✅ Own profile | ❌ |
+| Homework | ✅ | ✅ Post/Edit | ✅ Read-only |
+| Attendance Marking | ✅ | ✅ | ✅ View only |
+| Exam Results | ✅ | ✅ Upload | ✅ View only |
+| Notices | ✅ Post/Delete any | ✅ Post/Delete own | ✅ Read-only |
+| Fee Tracking | ✅ Full | ❌ | ✅ View dues |
+| Messaging | ✅ | ✅ | ✅ |
+| Academic Calendar (BS) | ✅ Manage | ✅ View | ✅ View |
+| Class Routine | ✅ | ✅ Edit | ✅ View |
+
+---
+
+## 🛠 Tech Stack
+
+### Frontend
+| Technology | Purpose |
 |---|---|
-| Frontend | React 18 + React Router v6 |
-| Styling | Tailwind CSS v3 + Custom CSS |
-| Charts | Recharts |
-| HTTP | Axios |
-| Notifications | React Hot Toast |
-| Backend | Node.js + Express.js |
-| Database | MongoDB + Mongoose |
-| Auth | JWT + bcryptjs |
-| OAuth | Google OAuth 2.0 |
-| OTP SMS | Sparrow SMS (Nepal) |
-| Security | Helmet + express-rate-limit |
+| React 18 | Component-based UI |
+| React Router v6 | Client-side navigation |
+| Tailwind CSS v3 | Utility-first styling |
+| Axios | HTTP client with interceptors |
+| Recharts | Attendance & performance charts |
+| React Hot Toast | Toast notifications |
+
+### Backend
+| Technology | Purpose |
+|---|---|
+| Node.js + Express.js | REST API server |
+| MongoDB + Mongoose | Database & ODM |
+| JWT (jsonwebtoken) | Token-based auth |
+| bcryptjs | Password hashing (salt: 12) |
+| Sparrow SMS | OTP delivery for Nepali numbers |
+| Google OAuth 2.0 | Teacher & admin login |
+| Helmet + express-rate-limit | Security hardening |
+| Morgan | Request logging |
+
+### Calendar
+Custom Bikram Sambat ↔ Gregorian conversion utility (JavaScript lookup table, no external library).
 
 ---
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 sikshyasanjal/
-
-
-backend/
-├── .env                         
-├── package-lock.json                 
-├── package.json                 
-├── server.js                    
+├── frontend/                            # React 18 application
+│   ├── public/
+│   │   └── index.html                   # HTML Template for React Application
+│   ├── src/
+│   │   ├── components/                  # Reusable UI
+│   │   │   ├── Sidebar.jsx
+│   │   │   └── Topbar.jsx         
+│   │   ├── context/                     # AppContext.jsx — global auth & user state
+│   │   │   └── AppContext.jsx
+│   │   ├── data/                        # mockData.js
+│   │   │   └── mockData.js
+│   │   ├── pages/                       # Route-level page components
+│   │   │   ├── AttendancePage.jsx
+│   │   │   ├── CalendarPage.jsx
+│   │   │   ├── DashboardPage.jsx
+│   │   │   ├── FeesPage.jsx
+│   │   │   ├── GoogleCallbackPage.jsx
+│   │   │   ├── HomeworkPage.jsx
+│   │   │   ├── LoginPage.jsx
+│   │   │   ├── MessagesPage.jsx
+│   │   │   ├── NoticesPage.jsx
+│   │   │   ├── ResultsPage.jsx
+│   │   │   ├── RoutinePage.jsx
+│   │   │   ├── SettingsPage.jsx
+│   │   │   ├── StudentsPage.jsx
+│   │   │   └── TeachersPage.jsx
+│   │   ├── utils/                      # BS calendar helper, formatters
+│   │   │   └── calender.js    
+│   │   ├── App.jsx                     # Routes + RoleGuard
+│   │   ├── index.css                   # Design tokens, glassmorphism, responsive rules
+│   │   └── index.js
+│   ├── .env
+│   └── package.json
 │
-├── middleware/
-│   ├── auth.js                  
-│   └── school.js                
+├── backend/                            # Node.js + Express API
+│   ├── middleware/
+│   │   ├── auth.js                     # JWT verification + role-based access control
+│   │   └── school.js                   # x-school-domain → ObjectId resolver
+│   ├── models/                         # Mongoose schemas
+│   │   ├── AcademicCalendar.js
+│   │   ├── Attendance.jsUser.js
+│   │   ├── ClassRoutine.js
+│   │   ├── ExamResult.js
+│   │   ├── FeeRecord.js
+│   │   ├── Homework.js
+│   │   ├── index.js
+│   │   ├── Message.js
+│   │   ├── Notice.js
+│   │   ├── School.js
+│   │   ├── Student.js
+│   │   └── User.js
+│   ├── routes/                         # Express route files per resource
+│   │   ├── attendance.js
+│   │   ├── auth.js
+│   │   ├── calendar.js
+│   │   ├── dashboard.js
+│   │   ├── fees.js
+│   │   ├── homework.js
+│   │   ├── messages.js
+│   │   ├── notices.js
+│   │   ├── results.js
+│   │   ├── routine.js
+│   │   ├── search.js
+│   │   ├── settings.js
+│   │   ├── students.js
+│   │   └── teachers.js
+│   ├── seeder.js                       # Demo school + sample data
+│   ├── server.js                       # Express app entry point
+│   ├── .env
+│   └── package.json
 │
-├── models/
-│   ├── index.js                 
-│   ├── School.js                
-│   ├── User.js                  
-│   ├── Student.js               
-│   ├── Homework.js              
-│   ├── Notice.js                  
-│   ├── Attendance.js              
-│   ├── ExamResult.js              
-│   ├── FeeRecord.js               
-│   ├── Message.js                 
-│   ├── ClassRoutine.js            
-│   └── AcademicCalendar.js        
-│
-└── routes/
-    ├── auth.js                    
-    ├── students.js                
-    ├── teachers.js                
-    ├── homework.js                
-    ├── attendance.js              
-    ├── notices.js                 
-    ├── results.js                 
-    ├── fees.js                    
-    ├── routine.js                
-    ├── messages.js                
-    ├── calendar.js                
-    ├── settings.js                
-    ├── dashboard.js               
-    └── search.js                    
-
-
-frontend/src/
-├── .env                         
-├── App.jsx                        
-├── index.css    
-├── index.js
-│
-├── data
-│   └── mockData.js
-│
-├── context/
-│   └── AppContext.jsx             
-│
-├── components/
-│   ├── Sidebar.jsx                
-│   └── Topbar.jsx                 
-│
-├── pages/
-│   ├── LoginPage.jsx              
-│   ├── GoogleCallbackPage.jsx     
-│   ├── DashboardPage.jsx          
-│   ├── AttendancePage.jsx         
-│   ├── StudentsPage.jsx          
-│   ├── HomeworkPage.jsx            
-│   ├── NoticesPage.jsx             
-│   ├── ResultsPage.jsx             
-│   ├── FeesPage.jsx                
-│   ├── MessagesPage.jsx            
-│   ├── TeachersPage.jsx            
-│   ├── RoutinePage.jsx             
-│   ├── CalendarPage.jsx            
-│   └── SettingsPage.jsx            
-│
-└── utils/
-    └── calendar.js             
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-├── frontend/                   # React frontend
-│
-├── src/                        
-│   ├── components/
-│   │   ├── Sidebar.jsx         # Navigation sidebar (role-aware)
-│   │   └── Topbar.jsx          # Header with search + notifications
-│   ├── context/
-│   │   └── AppContext.jsx      # Global auth & school state
-│   ├── data/
-│   │   └── mockData.js         # Demo data (students, teachers, etc.)
-│   ├── pages/
-│   │   ├── LoginPage.jsx       # Multi-role login (OTP / Google / Email)
-│   │   ├── DashboardPage.jsx   # Role-specific dashboards
-│   │   ├── StudentsPage.jsx    # CRUD student roster
-│   │   ├── TeachersPage.jsx    # Teacher profiles
-│   │   ├── HomeworkPage.jsx    # Post & view assignments
-│   │   ├── AttendancePage.jsx  # Daily marking + calendar view
-│   │   ├── ResultsPage.jsx     # Exam marks + GPA calculation
-│   │   ├── NoticesPage.jsx     # School notice board
-│   │   ├──SettingsPage.jsx     # Settings and configuration
-│   │   ├── FeesPage.jsx        # Fee tracking + payment records
-│   │   ├── MessagesPage.jsx    # Parent-teacher messaging
-│   │   ├── RoutinePage.jsx     # Weekly class timetable
-│   │   └── CalendarPage.jsx    # Academic calendar (Bikram Sambat)
-│   ├── utils/
-│   │   └── calendar.js         # BS ↔ AD conversion utility
-│   ├── App.jsx                 # Root with routing
-│   └── index.css               # Design system + global styles
-│
-└── backend/                    # Express API
-    ├── models/
-    │   └── index.js            # All Mongoose schemas
-    ├── middleware/
-    │   └── auth.js             # JWT auth + role guard
-    ├── routes/
-    │   ├── auth.js             # Login, OTP, Google OAuth
-    │   ├── students.js
-    │   ├── teachers.js
-    │   ├── homework.js
-    │   ├── notices.js
-    │   ├── attendance.js
-    │   ├── results.js
-    │   ├── fees.js
-    │   ├── messages.js
-    │   ├── routine.js
-    │   └── calendar.js
-    ├── server.js               # Express app entry point
-    ├── seeder.js               # Demo data seeder
-    └── .env.example            # Environment variables template
+└── README.md
 ```
 
 ---
 
-## Quick Start
+## ✅ Prerequisites
 
-### 1. Frontend (Demo Mode — no backend needed)
+Make sure you have the following installed before you begin:
 
-```bash
-cd sikshyasanjal
-npm install
-npm start
-```
-
-Open http://localhost:3000 — uses mock data, no backend required.
-
-**Demo login:** Select any role (Admin / Teacher / Parent), enter domain `saraswati`, click Sign In.
+- **Node.js** v18 or higher — [Download](https://nodejs.org/)
+- **npm** v9 or higher (comes with Node.js)
+- **Git** — [Download](https://git-scm.com/)
+- A **MongoDB Atlas** account (free tier is sufficient) — [Sign up](https://cloud.mongodb.com/)
+- A **Google Cloud Console** project with OAuth 2.0 credentials — [Setup guide](https://developers.google.com/identity/protocols/oauth2)
+- A **Sparrow SMS** account with API key — [sparrowsms.com](https://sparrowsms.com/)
 
 ---
 
-### 2. Full Stack Setup
+## 🚀 Getting Started
 
-#### Backend
+### 1. Clone the Repository
 
 ```bash
-cd sikshyasanjal/backend
-npm install
+git clone https://github.com/upadeshchaudhary/project_sikshyasanjal-main.git
+cd project_sikshyasanjal-main
+```
 
-# Copy and configure environment
+---
+
+### 2. Backend Setup
+
+```bash
+# Navigate to the backend directory
+cd backend
+
+# Install all dependencies
+npm install
+```
+
+Create the backend environment file:
+
+```bash
 cp .env.example .env
-# Edit .env with your MongoDB URI, JWT secret, etc.
-
-# Seed demo data
-node seeder.js
-
-# Start server
-npm run dev   # development with nodemon
-npm start     # production
 ```
 
-#### Frontend (connected to backend)
+Open `.env` and fill in your values (see [Environment Variables](#-environment-variables) section below).
+
+---
+
+### 3. Frontend Setup
+
+Open a **new terminal window** and run:
 
 ```bash
-# In frontend directory, create .env
-echo "REACT_APP_API_URL=http://localhost:5000" > .env
+# Navigate to the frontend directory
+cd frontend
 
+# Install all dependencies
+npm install
+```
+
+Create the frontend environment file:
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and set:
+
+```env
+REACT_APP_API_URL=http://localhost:5000
+```
+
+---
+
+### 4. Seed the Database
+
+Before running the app for the first time, populate the database with demo data:
+
+```bash
+# From the backend directory
+cd backend
+node seeder/seed.js
+```
+
+This creates:
+- A demo school with domain slug `demo`
+- An admin account
+- Sample teachers, students, and parents
+- Sample homework, notices, and attendance records
+
+> **Tip:** To wipe and re-seed, run: `node seeder/seed.js --reset`
+
+---
+
+### 5. Run the Application
+
+**Start the backend server** (from the `backend/` directory):
+
+```bash
+npm run dev
+```
+
+The API will be running at: `http://localhost:5000`
+
+**Start the frontend** (from the `frontend/` directory, in a separate terminal):
+
+```bash
 npm start
 ```
 
----
+The app will open at: `http://localhost:3000`
 
-## User Roles
+**Login with demo credentials:**
 
-### 👨‍💼 Admin
-Full access to all features: school configuration, user management, fee tracking, academic calendar, all reports.
-
-### 👩‍🏫 Teacher
-Operational access: post homework, mark attendance, upload exam results, manage class routine, message parents.
-
-### 👪 Parent
-Read-only access to their child's data: attendance, homework, results, fee status, school notices. Can message teachers.
-
----
-
-## Features
-
-| Feature | Admin | Teacher | Parent |
+| Role | School Domain | Email / Phone | Password |
 |---|---|---|---|
-| Dashboard | ✅ Full | ✅ Classes only | ✅ Child only |
-| Students | ✅ CRUD | ✅ View | ❌ |
-| Teachers | ✅ CRUD | ❌ | ❌ |
-| Homework | ✅ Post/Edit | ✅ Post/Edit | 👁️ View |
-| Attendance | ✅ Mark/View | ✅ Mark/View | 👁️ Calendar |
-| Exam Results | ✅ Upload | ✅ Upload | 👁️ View |
-| Notices | ✅ Post/Delete | ✅ Post | 👁️ View |
-| Fees | ✅ Full | ❌ | 👁️ Own child |
-| Messages | ✅ All | ✅ Parents | ✅ Teachers |
-| Class Routine | ✅ Edit | ✅ Edit | 👁️ View |
-| Calendar (BS) | ✅ Add/Edit | 👁️ View | 👁️ View |
+| Admin | `demo` | `admin@demo.com` | `Admin@1234` |
+| Teacher | `demo` | `teacher@demo.com` | *(Google OAuth)* |
+| Parent | `demo` | `9800000000` | OTP via Sparrow SMS |
 
 ---
 
-## API Endpoints
+## 🔐 Environment Variables
+
+### Backend (`backend/.env`)
+
+```env
+# Server
+PORT=5000
+NODE_ENV=development
+
+# MongoDB
+MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/sikshyasanjal
+
+# JWT
+JWT_SECRET=your_jwt_secret_key_here
+JWT_EXPIRES_IN=7d
+
+# Google OAuth
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_CALLBACK_URL=http://localhost:5000/api/auth/google/callback
+
+# Sparrow SMS (OTP for parents)
+SPARROW_SMS_TOKEN=your_sparrow_sms_token
+SPARROW_SMS_FROM=SikshyaSanjal
+
+# CORS
+CLIENT_URL=http://localhost:3000
+
+# OTP Settings
+OTP_EXPIRY_MINUTES=5
+```
+
+### Frontend (`frontend/.env`)
+
+```env
+REACT_APP_API_URL=http://localhost:5000
+REACT_APP_GOOGLE_CLIENT_ID=your_google_client_id
+```
+
+> ⚠️ **Never commit `.env` files to version control.** They are listed in `.gitignore` by default.
+
+---
+
+## 🔑 Authentication Flow
+
+SikshyaSanjal uses **different auth methods per role**, optimized for each user type:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                   LOGIN PAGE (Step 1)                   │
+│              Enter your school domain slug              │
+└─────────────────────┬───────────────────────────────────┘
+                      │
+          ┌───────────▼───────────┐
+          │   Select Your Role    │
+          └──┬──────────┬────────┘
+             │          │
+      ┌──────▼──┐   ┌───▼──────────────────┐
+      │  Parent  │   │  Teacher / Admin     │
+      └──────┬──┘   └───┬──────────────────┘
+             │           │
+      ┌──────▼──┐   ┌───▼──────────────────┐
+      │Phone No. │   │  Google OAuth 2.0    │
+      │+ OTP via │   │  (or email/password) │
+      │Sparrow   │   └──────────────────────┘
+      │SMS       │
+      └──────────┘
+
+All roles → JWT issued → x-school-domain header on every request
+```
+
+- **Parents:** Enter phone number → receive OTP via Sparrow SMS → verified → JWT issued. Returning parents can use password login.
+- **Teachers & Admins:** Google OAuth flow → backend verifies identity token → JWT issued.
+- **Every request** carries `Authorization: Bearer <token>` and `x-school-domain: <slug>`.
+
+---
+
+## 🏢 Multi-Tenancy
+
+SikshyaSanjal uses a **multi-tenant single-database** architecture:
+
+- Every MongoDB document contains a `school` field (ObjectId).
+- Every API request carries an `x-school-domain` header.
+- The `school.js` middleware resolves the domain slug to a school ObjectId and attaches it to `req.schoolId`.
+- **Every database query** is automatically scoped with `{ school: req.schoolId }`.
+
+This guarantees that a query from School A **can never return data belonging to School B**.
+
+```
+Client Request
+     │
+     ▼
+x-school-domain: "greenfield"
+     │
+     ▼
+school.js middleware → resolves to ObjectId("6634abc...")
+     │
+     ▼
+All DB queries: { school: ObjectId("6634abc..."), ...filter }
+```
+
+---
+
+## 👥 Role Permissions
+
+| Action | Admin | Teacher | Parent |
+|---|:---:|:---:|:---:|
+| Add/Edit/Delete students | ✅ | ❌ | ❌ |
+| Add/Edit/Delete teachers | ✅ | ❌ | ❌ |
+| Post homework | ✅ | ✅ | ❌ |
+| Delete homework | ✅ Any | ✅ Own only | ❌ |
+| Post notice | ✅ | ✅ | ❌ |
+| Delete notice | ✅ Any | ✅ Own only | ❌ |
+| Upload exam results | ✅ | ✅ | ❌ |
+| Mark attendance | ✅ | ✅ | ❌ |
+| Record fee payment | ✅ | ❌ | ❌ |
+| View fee status | ✅ | ❌ | ✅ Own child |
+| Send messages | ✅ | ✅ | ✅ |
+| School settings | ✅ | ❌ | ❌ |
+
+---
+
+## 📡 API Overview
+
+Base URL: `http://localhost:5000/api`
 
 All endpoints require:
 - `Authorization: Bearer <jwt_token>`
-- `x-school-domain: <school_domain>` header for multi-tenant isolation
+- `x-school-domain: <school_slug>`
 
-```
-POST   /api/auth/login           Teacher/Admin email login
-POST   /api/auth/otp/send        Send OTP to parent phone
-POST   /api/auth/otp/verify      Verify OTP and get token
-POST   /api/auth/google          Google OAuth login
-
-GET    /api/students             List students (filter: ?class=10A&search=aarav)
-POST   /api/students             Add student
-PUT    /api/students/:id         Update student
-DELETE /api/students/:id         Remove student (admin only)
-
-GET    /api/teachers             List teachers
-POST   /api/teachers             Add teacher (admin only)
-
-GET    /api/homework             List homework (filter: ?class=10A)
-POST   /api/homework             Post homework
-PUT    /api/homework/:id         Edit homework
-DELETE /api/homework/:id         Delete homework
-
-GET    /api/attendance           Get records (filter: ?class=10A&date=2082-01-18)
-POST   /api/attendance/bulk      Save bulk attendance
-
-GET    /api/results              Get results (filter: ?student=id&class=10A)
-POST   /api/results              Upload exam marks (auto-calculates GPA)
-
-GET    /api/fees                 List fee records
-GET    /api/fees/summary         Summary (admin only)
-POST   /api/fees                 Create fee record
-PUT    /api/fees/:id             Update payment status
-
-GET    /api/messages             Inbox/outbox
-GET    /api/messages/:id/thread  Full conversation thread
-POST   /api/messages             Send message
-PUT    /api/messages/:id/read    Mark as read
-
-GET    /api/routine/:class       Get class timetable
-PUT    /api/routine/:class       Update timetable
-
-GET    /api/calendar             List events (filter: ?month=10)
-POST   /api/calendar             Add event (admin only)
-DELETE /api/calendar/:id         Remove event
-```
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/auth/login` | Email/password login |
+| POST | `/auth/parent/otp` | Send OTP to parent phone |
+| POST | `/auth/parent/verify` | Verify OTP & issue JWT |
+| GET | `/auth/google` | Google OAuth redirect |
+| GET | `/students` | List students (scoped) |
+| POST | `/students` | Add student (admin) |
+| PUT | `/students/:id` | Update student (admin) |
+| DELETE | `/students/:id` | Delete student (admin) |
+| GET | `/homework` | Get homework by class |
+| POST | `/homework` | Create homework |
+| GET | `/attendance/:classId/:date` | Get attendance for date |
+| POST | `/attendance` | Mark attendance |
+| GET | `/results/:studentId` | Get exam results |
+| POST | `/results` | Upload exam marks |
+| GET | `/notices` | Get all notices |
+| POST | `/notices` | Post notice |
+| GET | `/fees/:studentId` | Get fee records |
+| POST | `/fees` | Record payment |
+| GET | `/messages` | Get inbox |
+| POST | `/messages` | Send message |
+| GET | `/routine/:classId` | Get class timetable |
+| GET | `/calendar` | Get academic calendar |
 
 ---
 
-## Multi-Tenant Architecture
+## ☁️ Deployment
 
-Each API request carries an `x-school-domain` header which middleware resolves to a school ObjectId. Every database query is scoped to that school:
+### Frontend → Vercel
 
-```javascript
-// Every model document has a `school` field
-const filter = { school: req.school._id, ...queryFilters };
-```
-
-This ensures School A can never access School B's data, while all schools share the same MongoDB instance for cost efficiency.
-
----
-
-## Deployment
-
-**Frontend** → Vercel / Netlify (free tier)
 ```bash
+# From the frontend directory
 npm run build
-# Deploy the /build folder
+
+# Deploy via Vercel CLI
+npx vercel --prod
 ```
 
-**Backend** → Render / Railway / DigitalOcean Droplet
-```bash
-# Set environment variables in your platform dashboard
-npm start
-```
+Set `REACT_APP_API_URL` to your live backend URL in the Vercel dashboard environment variables.
 
-**Database** → MongoDB Atlas Free Tier (512MB, sufficient for ~500 students)
+### Backend → Render / Railway
+
+1. Push your `backend/` folder to a GitHub repository.
+2. Connect the repo on [Render](https://render.com) or [Railway](https://railway.app).
+3. Set all environment variables from `backend/.env` in the platform dashboard.
+4. Set the start command to: `node server.js`
+
+### Database → MongoDB Atlas
+
+1. Create a free cluster on [MongoDB Atlas](https://cloud.mongodb.com).
+2. Whitelist your server's IP address (or `0.0.0.0/0` for open access during development).
+3. Copy the connection URI and set it as `MONGO_URI` in your backend `.env`.
 
 ---
 
-## Bikram Sambat Calendar
+## 📸 Screenshots
 
-Nepal uses the Bikram Sambat (BS) calendar. This app uses a custom JS utility (`src/utils/calendar.js`) for BS month names and day counts. BS dates are stored as strings (`YYYY-MM-DD`) alongside the Gregorian equivalent for display.
+> _Screenshots will be added after final UI polish._
 
-Current year: **2082 BS** ≈ 2025/2026 AD
+| Admin Dashboard | Parent Dashboard | Attendance Page |
+|---|---|---|
+| _(coming soon)_ | _(coming soon)_ | _(coming soon)_ |
 
 ---
 
-## Future Roadmap
+## 🤝 Contributing
 
-- [ ] Push notifications (Firebase FCM)
-- [ ] Real-time messaging (WebSockets)
-- [ ] Native mobile app (React Native)
-- [ ] PDF report export (marksheets, attendance reports)
-- [ ] Automated fee generation by term
-- [ ] Student promotion to next class/grade
-- [ ] Multi-campus support
-- [ ] Analytics dashboard
+This is a final year academic project. Contributions are welcome for bug fixes and improvements.
 
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature-name`
+3. Commit your changes: `git commit -m "feat: add your feature"`
+4. Push to the branch: `git push origin feature/your-feature-name`
+5. Open a Pull Request
 
+---
 
+## 📄 License
 
+This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
 
+---
+
+<div align="center">
+
+Built with ❤️ for Nepali schools by **Upadesh Chaudhary and Team**  
+BIT Final Year · CCT Dharan · Tribhuvan University · 2026
+
+**[⬆ Back to top](#-sikshyasanjal)**
+
+</div>

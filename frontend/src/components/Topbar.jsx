@@ -1,3 +1,4 @@
+// Topbar.jsx — includes page title, search, notifications, user info, and settings shortcut
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useApp } from "../context/AppContext";

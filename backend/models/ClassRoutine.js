@@ -1,44 +1,71 @@
+// models/ClassRoutine.js
 const mongoose = require("mongoose");
 
 // Helper: Validate daily schedule
 function validateDayPeriods(periods) {
   if (!Array.isArray(periods)) return false;
-
-  // Must have exactly 8 periods
   if (periods.length !== 8) return false;
 
   let breakCount = 0;
+  let currentTime = 9 * 60; // 9:00 AM
 
   for (let i = 0; i < periods.length; i++) {
     const p = periods[i];
 
-    // Period numbering must match order
+    if (!p) return false;
+
+    // Must follow correct order
     if (p.periodNo !== i + 1) return false;
+
+    // Time must exist
+    if (!p.startTime || !p.endTime) return false;
+
+    const [sh, sm] = p.startTime.split(":").map(Number);
+    const [eh, em] = p.endTime.split(":").map(Number);
+
+    if (
+      isNaN(sh) || isNaN(sm) ||
+      isNaN(eh) || isNaN(em)
+    ) return false;
+
+    const startMinutes = sh * 60 + sm;
+    const endMinutes = eh * 60 + em;
+
+    const expectedStart = currentTime;
+    const duration = p.isBreak ? 30 : 45;
+    const expectedEnd = currentTime + duration;
+
+    // Validate exact timing
+    if (startMinutes !== expectedStart || endMinutes !== expectedEnd) {
+      return false;
+    }
+
+    currentTime = expectedEnd;
 
     if (p.isBreak) {
       breakCount++;
-
-      // Lunch break must be after 4th period (i.e., period 5)
-      if (p.periodNo !== 5) return false;
+      if (p.periodNo !== 5) return false; // Lunch after 4th period
     } else {
-      // Non-break must have subject + teacher
-      if (!p.subject || !p.teacher) return false;
+      if (!p.subject || !p.teacher || !p.teacherId) return false;
     }
   }
 
-  // Only one break allowed
   return breakCount === 1;
 }
 
 // Period Schema
 const periodSchema = new mongoose.Schema(
   {
-    periodNo: { type: Number, required: true }, // 1-8
-    startTime: { type: String },
-    endTime: { type: String },
+    periodNo: { type: Number, required: true },
+    startTime: { type: String, required: true },
+    endTime: { type: String, required: true },
     subject: { type: String, trim: true, default: "" },
     teacher: { type: String, trim: true, default: "" },
-    teacherId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    teacherId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
     room: { type: String, trim: true, default: "" },
     isBreak: { type: Boolean, default: false },
   },
@@ -55,17 +82,17 @@ const classRoutineSchema = new mongoose.Schema(
       index: true,
     },
 
-    // Class teacher (must exist)
+    // Class teacher
     classTeacher: {
-      type: String,
-      trim: true,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       required: true,
     },
 
-    // Map: subject -> teacher
+    // subject -> teacherId
     subjectTeacherMap: {
       type: Map,
-      of: String,
+      of: mongoose.Schema.Types.ObjectId,
       default: {},
     },
 
@@ -80,7 +107,7 @@ const classRoutineSchema = new mongoose.Schema(
       required: true,
     },
 
-    // Weekdays (validated)
+    // Weekdays
     monday: {
       type: [periodSchema],
       validate: [validateDayPeriods, "Invalid Monday schedule"],
@@ -102,7 +129,7 @@ const classRoutineSchema = new mongoose.Schema(
       validate: [validateDayPeriods, "Invalid Friday schedule"],
     },
 
-    // Weekends (no schedule)
+    // Weekends
     sunday: {
       type: [periodSchema],
       default: [],
@@ -120,51 +147,93 @@ const classRoutineSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Unique constraint per class per year
+// Unique per class per year
 classRoutineSchema.index(
   { school: 1, class: 1, academicYear: 1 },
   { unique: true }
 );
 
-// Pre-save validation: First period rule
-classRoutineSchema.pre("save", function (next) {
-  const days = ["monday", "tuesday", "wednesday", "thursday", "friday"];
+// Pre-save validation (ALL rules)
+classRoutineSchema.pre("save", async function (next) {
+  try {
+    const days = ["monday", "tuesday", "wednesday", "thursday", "friday"];
 
-  let firstSubject = null;
+    let firstSubject = null;
 
-  for (const day of days) {
-    const periods = this[day];
+    // 1. Validate weekdays + first period rules
+    for (const day of days) {
+      const periods = this[day];
 
-    if (!periods || periods.length === 0) continue;
+      if (!periods || periods.length !== 8) {
+        return next(new Error(`${day} must have 8 periods`));
+      }
 
-    const firstPeriod = periods[0];
+      const firstPeriod = periods[0];
 
-    // First period cannot be break
-    if (firstPeriod.isBreak) {
-      return next(new Error(`First period cannot be a break on ${day}`));
+      if (firstPeriod.isBreak) {
+        return next(new Error(`First period cannot be break on ${day}`));
+      }
+
+      // First subject consistency
+      if (!firstSubject) {
+        firstSubject = firstPeriod.subject;
+      }
+
+      if (firstPeriod.subject !== firstSubject) {
+        return next(
+          new Error("First period subject must be same for all weekdays")
+        );
+      }
+
+      // Must be taught by class teacher
+      if (
+        !firstPeriod.teacherId ||
+        firstPeriod.teacherId.toString() !== this.classTeacher.toString()
+      ) {
+        return next(
+          new Error("First period must be taught by class teacher")
+        );
+      }
+
+      // 2. Validate subject-teacher mapping
+      for (const p of periods) {
+        if (!p.isBreak) {
+          const assignedTeacher = this.subjectTeacherMap?.get(p.subject);
+
+          if (
+            assignedTeacher &&
+            assignedTeacher.toString() !== p.teacherId.toString()
+          ) {
+            return next(
+              new Error(
+                `Teacher mismatch for subject "${p.subject}" on ${day}`
+              )
+            );
+          }
+        }
+      }
     }
 
-    // Set baseline subject from first day
-    if (!firstSubject) {
-      firstSubject = firstPeriod.subject;
-    }
+    // 3. Ensure class teacher is unique across classes
+    const existing = await mongoose.model("ClassRoutine").findOne({
+      school: this.school,
+      academicYear: this.academicYear,
+      classTeacher: this.classTeacher,
+      _id: { $ne: this._id },
+    });
 
-    // Must be same subject all days
-    if (firstPeriod.subject !== firstSubject) {
+    if (existing) {
       return next(
-        new Error("First period subject must be same for all weekdays")
+        new Error(
+          "This teacher is already assigned as a class teacher to another class"
+        )
       );
     }
 
-    // Must be taught by class teacher
-    if (firstPeriod.teacher !== this.classTeacher) {
-      return next(
-        new Error("First period must be taught by class teacher")
-      );
-    }
+    next();
+  } catch (err) {
+    next(err);
   }
-
-  next();
 });
 
 module.exports = mongoose.model("ClassRoutine", classRoutineSchema);
