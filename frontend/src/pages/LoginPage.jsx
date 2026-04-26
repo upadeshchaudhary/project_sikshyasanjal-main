@@ -151,7 +151,29 @@ export default function LoginPage() {
     }
   }
 
-  // ── Step 3b: Submit login ─────────────────────────────────────────────────
+  // ── Step 3b: Verify school domain and move to role selection ─────────────────────
+  async function handleDomainSubmit() {
+    if (!slug) return setError("Please enter school domain");
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await axios.get(`/school/${slug}`);
+
+      // Save school info globally (IMPORTANT)
+      setSchoolInfo(res.data);
+
+      // Move to next step (login form)
+      setStep(2);
+    } catch (err) {
+      setError("School not found. Please check domain.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Step 3c: Submit login ─────────────────────────────────────────────────
   async function handleSubmit() {
     const errs = {};
     setErrors({});
@@ -323,7 +345,6 @@ function DomainStep({ slug, setSlug, error, loading, onSubmit }) {
         <label style={s.label}>School Domain</label>
         <div style={{ ...s.inputWrap, borderColor: error ? "#EF4444" : "#E8EAED" }}>
           <span style={{ ...s.inputIconWrap, fontSize: 12, color: "#9CA3AF", fontFamily: "'JetBrains Mono',monospace" }}>
-            app/
           </span>
           <input
             style={{ ...s.input, fontFamily: "'JetBrains Mono',monospace", letterSpacing: 0.5 }}

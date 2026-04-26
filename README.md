@@ -254,7 +254,7 @@ Before running the app for the first time, populate the database with demo data:
 ```bash
 # From the backend directory
 cd backend
-node seeder/seed.js
+node seeder.js
 ```
 
 This creates:
