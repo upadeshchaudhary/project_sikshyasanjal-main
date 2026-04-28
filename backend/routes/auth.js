@@ -297,7 +297,7 @@ router.post("/parent/login", async (req, res) => {
     const school = await School.findOne({ domain: schoolDomain });
     if (!school) return res.status(404).json({ success: false, message: "School not found." });
 
-    const user = await User.findOne({ phone, school: school._id, role: "parent" });
+    const user = await User.findOne({ phone, school: school._id, role: "parent" }).select("+passwordHash"); // Include passwordHash for verification  
     const INVALID = { success: false, message: "Incorrect phone number or password." };
 
     if (!user || !user.passwordHash) return res.status(401).json(INVALID);
