@@ -1,17 +1,18 @@
 // backend/models/index.js
 // Central barrel — all routes do: const { User, School, Student, ... } = require("../models")
 
-const School      = require("./School");
-const User        = require("./User");
-const Student     = require("./Student");
-const Homework    = require("./Homework");
-const Notice      = require("./Notice");
-const Attendance  = require("./Attendance");
-const ExamResult  = require("./ExamResult");
-const FeeRecord   = require("./FeeRecord");
-const Message     = require("./Message");
-const ClassRoutine = require("./ClassRoutine");
-const AcademicCalendar = require("./AcademicCalendar");
+const School            = require("./SchoolSchema");
+const User              = require("./UserSchema");
+const Student           = require("./StudentSchema");
+const Homework          = require("./HomeworkSchema");
+const Notice            = require("./NoticeSchema");
+const Attendance        = require("./AttendanceSchema");
+const ExamResult        = require("./ExamResultSchema");
+const FeeRecord         = require("./FeeRecordSchema");
+const Message           = require("./MessageSchema");
+const ClassRoutine      = require("./ClassRoutineSchema");
+const AcademicCalendar  = require("./AcademicCalendarSchema");
+const Complain          = require("./ComplainSchema");
 
 module.exports = {
   School,
@@ -25,4 +26,5 @@ module.exports = {
   Message,
   ClassRoutine,
   AcademicCalendar,
+  Complain,
 };

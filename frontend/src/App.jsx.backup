@@ -148,3 +148,27 @@ export default function App() {
     </AppProvider>
   );
 }
+
+// ─── Root ─────────────────────────────────────────────────────────────────────
+export default function App() {
+  return (
+    <AppProvider>
+      <BrowserRouter>
+        <AppShell />
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            style: {
+              fontFamily: "'Sora', sans-serif",
+              fontSize: "13px",
+              borderRadius: "10px",
+              border: "1px solid var(--border)",
+            },
+            success: { iconTheme: { primary: "var(--green)", secondary: "#fff" } },
+            error:   { iconTheme: { primary: "var(--red)",   secondary: "#fff" } },
+          }}
+        />
+      </BrowserRouter>
+    </AppProvider>
+  );
+}

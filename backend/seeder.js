@@ -10,24 +10,21 @@ const mongoose = require("mongoose");
 const bcrypt   = require("bcryptjs");
 
 // ── Models ───────────────────────────────────────────────────────────────────
-const School           = require("./models/School");
-const User             = require("./models/User");
-const Student          = require("./models/Student");
-const Homework         = require("./models/Homework");
-const Notice           = require("./models/Notice");
-const Attendance       = require("./models/Attendance");
-const ExamResult       = require("./models/ExamResult");
-const FeeRecord        = require("./models/FeeRecord");
-const Message          = require("./models/Message");
-const ClassRoutine     = require("./models/ClassRoutine");
-const AcademicCalendar = require("./models/AcademicCalendar");
+const School           = require("./models/SchoolSchema");
+const User             = require("./models/UserSchema");
+const Student          = require("./models/StudentSchema");
+const Homework         = require("./models/HomeworkSchema");
+const Notice           = require("./models/NoticeSchema");
+const Attendance       = require("./models/AttendanceSchema");
+const ExamResult       = require("./models/ExamResultSchema");
+const FeeRecord        = require("./models/FeeRecordSchema");
+const Message          = require("./models/MessageSchema");
+const ClassRoutine     = require("./models/ClassRoutineSchema");
+const AcademicCalendar = require("./models/AcademicCalendarSchema");
 
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/sikshyasanjal";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-// BUG FIX #1: hash() was called without await inside User.create() for teachers and parents.
-// This stored a Promise object instead of the actual bcrypt hash, meaning passwords
-// could never be verified and login would always fail for those roles.
 async function hash(password) {
   return bcrypt.hash(password, 12);
 }
@@ -107,8 +104,6 @@ async function seed() {
 
   // ════════════════════════════════════════════════════════════════════════════
   // 1. SCHOOL
-  // BUG FIX #6: Added "Economics" to school.subjects so Class 10B exam results
-  // don't reference a subject that doesn't exist on the school record.
   // ════════════════════════════════════════════════════════════════════════════
   const school = await School.create({
     name:         "Saraswati Secondary School",
@@ -138,7 +133,6 @@ async function seed() {
     role:         "admin",
     school:       sId,
     email:        "admin@saraswati.edu.np",
-    // BUG FIX #1 (admin): await the hash so the field stores a string, not a Promise.
     passwordHash: await hash("Admin@123"),
     isDisabled:   false,
     lastLogin:    new Date(),
@@ -147,12 +141,6 @@ async function seed() {
 
   // ════════════════════════════════════════════════════════════════════════════
   // 3. USERS — Teachers
-  // BUG FIX #1 (teachers): Each passwordHash now awaits bcrypt.hash() so the
-  // stored value is a real hash string, not an unresolved Promise.
-  // BUG FIX #3: Removed the redundant Promise.all(teachers.map(t => t.save()))
-  // call that followed. If your User model has a pre-save hook that re-hashes
-  // passwordHash, calling .save() on an already-hashed value double-hashes it,
-  // making the password unverifiable forever.
   // ════════════════════════════════════════════════════════════════════════════
   const teacherData = [
     { name: "Sunita Koirala",    subject: "English",        classes: ["9A","9B","10A","10B"], email: "sunita@saraswati.edu.np",  q: "M.A. English",       phone: "9841234501" },
@@ -177,7 +165,7 @@ async function seed() {
         role:            "teacher",
         school:          sId,
         email:           t.email,
-        passwordHash:    teacherHashes[i],  // already-resolved hash string
+        passwordHash:    teacherHashes[i],  
         subject:         t.subject,
         assignedClasses: t.classes,
         qualification:   t.q,
@@ -186,10 +174,6 @@ async function seed() {
       })
     )
   );
-  // BUG FIX #3: The original code called teachers.map(t => t.save()) here.
-  // That line has been removed. If your pre-save hook checks for a dirty
-  // passwordHash field to decide whether to re-hash, double-hashing was
-  // silently corrupting every teacher password.
   console.log(`👩‍🏫 ${teachers.length} teachers created | Password: Teacher@123`);
 
   const [sunita, ram, sita, bikash, kabita, arjun, gita, pawan, mina, deepak] = teachers;
@@ -251,10 +235,6 @@ async function seed() {
 
   // ════════════════════════════════════════════════════════════════════════════
   // 5. PARENT USERS (one demo account per class for presentation logins)
-  // BUG FIX #1 (parents): await hash() before passing into User.create().
-  // BUG FIX #11: Using childId (singular) because the demo parents each have
-  // one child. If your User model uses a children[] array, change childId to
-  // children: [p.child._id] and remove childName / childClass.
   // ════════════════════════════════════════════════════════════════════════════
   const parentDemoData = [
     { name: "Rajesh Sharma",   phone: "9841111101", child: students[0]  },  // Aarav 9A-1
@@ -376,7 +356,6 @@ async function seed() {
 
   // ════════════════════════════════════════════════════════════════════════════
   // 9. EXAM RESULTS — First Term (published) + Second Term (draft)
-  // BUG FIX #6: Class 10B now uses "Economics" (which is in school.subjects).
   // ════════════════════════════════════════════════════════════════════════════
   const CLASS_SUBJECTS = {
     "9A":  ["English","Nepali","Maths","Science","Social Studies","Computer","Health"],
@@ -495,9 +474,6 @@ async function seed() {
 
   // ════════════════════════════════════════════════════════════════════════════
   // 11. MESSAGES
-  // BUG FIX #8: Renamed `parentMsg` to `parentMessage` — the more conventional
-  // Mongoose field name. If your Message model uses a different name (e.g.
-  // `thread`, `replyTo`), update this field name to match your model exactly.
   // ════════════════════════════════════════════════════════════════════════════
   const msg1 = await Message.create({
     school:            sId,
@@ -514,7 +490,7 @@ async function seed() {
     to:                parent9A._id,
     subject:           "Re: Regarding Aarav's English homework",
     body:              "Namaste, Thank you for reaching out. Aarav is doing well overall. For the essay, I suggest he reads the reference material I shared in class. Please feel free to contact me anytime.",
-    parentMessage:     msg1._id,   // BUG FIX #8: was `parentMsg`
+    parentMsg:         msg1._id,
     isReadByRecipient: false,
   });
 
@@ -684,9 +660,6 @@ async function seed() {
 
   // ════════════════════════════════════════════════════════════════════════════
   // 13. ACADEMIC CALENDAR EVENTS
-  // BUG FIX #9: Replaced "deadline" event type with "event" — the PRD only
-  // defines: holiday, exam, event, meeting. If your AcademicCalendar model has
-  // a strict enum on the `type` field, "deadline" will throw a validation error.
   // ════════════════════════════════════════════════════════════════════════════
   const calendarEvents = [
     { title: "New Academic Year Begins",     type: "event",   startDate: adDate(2025,4,14),  startDateBs: bsDate(2082,1,1),   isHoliday: false, description: "Academic year 2081-82 begins. Students report at 9:00 AM." },
@@ -747,7 +720,6 @@ async function seed() {
   console.log(`   Messages:   4`);
   console.log(`   Calendar:   ${calendarEvents.length} events`);
   console.log(`   Routine:    1 (Class 10A)`);
-  console.log("\n" + "═".repeat(62));
 
   await mongoose.disconnect();
   process.exit(0);

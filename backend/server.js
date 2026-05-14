@@ -93,21 +93,21 @@ app.use("/api/", generalLimiter);
 // OTP-specific limiter — PRD spec: max 3 per 10 minutes per IP
 // FIXED: correct paths matching the auth router structure
 const otpLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  max: 3,
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: false,
   message: { success: false, message: "Too many OTP requests. Please wait 10 minutes before trying again." },
 });
 // FIXED: use correct paths that match the auth router
-app.use("/api/auth/parent/send-otp",   otpLimiter);
+app.use("/api/auth/parent/send-otp", otpLimiter);
 app.use("/api/auth/parent/verify-otp", otpLimiter);
 
 // Login brute-force limiter
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: "Too many failed login attempts. Please try again in 15 minutes." },
@@ -117,10 +117,10 @@ app.use("/api/auth/parent/login",   loginLimiter);
 
 // ── School resolution middleware ───────────────────────────────────────────────
 // Applied to all /api/* routes EXCEPT auth routes (which bootstrap the session)
-const schoolMiddleware = require("./middleware/school");
+const schoolMiddleware = require("./middleware/schoolMiddleware");
 
 // FIXED: explicit path list instead of fragile string replacement
-const UNSCOPED_PREFIXES = ["/auth", "/health", "/search"];
+const UNSCOPED_PREFIXES = ["/auth", "/health"];
 
 app.use("/api", (req, res, next) => {
   const isUnscoped = UNSCOPED_PREFIXES.some((prefix) =>
@@ -131,20 +131,21 @@ app.use("/api", (req, res, next) => {
 });
 
 // ── Routes ────────────────────────────────────────────────────────────────────
-app.use("/api/auth",       require("./routes/auth"));
-app.use("/api/students",   require("./routes/students"));
-app.use("/api/teachers",   require("./routes/teachers"));
-app.use("/api/homework",   require("./routes/homework"));
-app.use("/api/notices",    require("./routes/notices"));
-app.use("/api/attendance", require("./routes/attendance"));
-app.use("/api/results",    require("./routes/results"));
-app.use("/api/fees",       require("./routes/fees"));
-app.use("/api/messages",   require("./routes/messages"));
-app.use("/api/routine",    require("./routes/routine"));
-app.use("/api/calendar",   require("./routes/calendar"));
-app.use("/api/settings",   require("./routes/settings"));   // ADDED
-app.use("/api/dashboard",  require("./routes/dashboard"));  // ADDED
-app.use("/api/search",     require("./routes/search"));     // ADDED
+app.use("/api", require("./routes/auth/authRoutes"));
+app.use("/api", require("./routes/dashboard/dashboardRoutes"));
+app.use("/api", require("./routes/students/studentsRoutes"));
+app.use("/api", require("./routes/teachers/teachersRoutes"));
+app.use("/api", require("./routes/attendance/attedanceRoutes"));
+app.use("/api", require("./routes/calender/calenderRoutes"));
+app.use("/api", require("./routes/complain/complainRoutes"));
+app.use("/api", require("./routes/fees/fees"));
+app.use("/api", require("./routes/homework/homeworkRoutes"));
+app.use("/api", require("./routes/messages/messagesRoutes"));
+app.use("/api", require("./routes/notices/noticesRoutes"));
+app.use("/api", require("./routes/results/resultsRoutes"));
+app.use("/api", require("./routes/routine/routineroutes"));
+app.use("/api", require("./routes/search/searchRoutes"));
+app.use("/api", require("./routes/settings/settingsRoutes"));
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get("/api/health", (_req, res) =>
