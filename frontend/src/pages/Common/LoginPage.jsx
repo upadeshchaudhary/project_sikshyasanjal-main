@@ -136,7 +136,7 @@ export default function LoginPage() {
     try {
       const { data } = await axios.post(
         "/api/auth/parent/send-otp",
-        { phone },
+        { phone, domain: schoolInfo.slug },
         { headers: { "x-school-domain": schoolInfo.slug } }
       );
       setOtpToken(data.otpToken); // server returns a token to verify against

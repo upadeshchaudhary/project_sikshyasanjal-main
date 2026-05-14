@@ -153,13 +153,13 @@ exports.adminTeacherLogin = async (req, res) => {
 // ════════════════════════════════════════════════════════════════════════════════
 // POST /api/auth/parent/send-otp — Send OTP to parent's Nepali mobile number
 // Rate limited in server.js: max 3 per 10 minutes
-// ════════════════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════════════════════════
 exports.parentSendOtp = async (req, res) => {
   try {
-    const { phone, domain } = req.body;
-    // const domain = (req.headers["x-school-domain"] || "").toLowerCase().trim(); //  
+    const { phone } = req.body;
+    const schoolDomain = (req.body.domain || req.headers["x-school-domain"] || "").toLowerCase().trim();
 
-    if (!phone || !domain) {
+    if (!phone || !schoolDomain) {
       return res.status(400).json({ success: false, message: "Phone number and domain are required." });
     }
 
@@ -168,7 +168,7 @@ exports.parentSendOtp = async (req, res) => {
       return res.status(400).json({ success: false, message: "Enter a valid Nepali mobile number." });
     }
 
-    const school = await School.findOne({ domain: domain });
+    const school = await School.findOne({ domain: schoolDomain });
     if (!school) return res.status(404).json({ success: false, message: "School not found." });
 
   
@@ -185,7 +185,7 @@ exports.parentSendOtp = async (req, res) => {
     if (!user) {
       res.status(400).json({
         success: false,
-        message: "No parent account found with this phone number in the specified school.",
+        message: "No parent account found with this phone number.",
       });
       return;
     }
@@ -200,40 +200,40 @@ exports.parentSendOtp = async (req, res) => {
     user.otpExpiry = otpExpiry;
     await user.save();
 
-    // ── Send via Sparrow SMS (Nepali SMS gateway) ───────────────────────────
-    const smsText = `Your SikshyaSanjal OTP is: ${otpPlain}. Valid for 5 minutes. Do not share this code.`;
+  //   // ── Send via Sparrow SMS (Nepali SMS gateway) ───────────────────────────
+  //   const smsText = `Your SikshyaSanjal OTP is: ${otpPlain}. Valid for 5 minutes. Do not share this code.`;
 
-    // In development: log OTP for testing, don't return in response
-    if (process.env.NODE_ENV === "development") {
-      console.log(`📱 DEV OTP for +977-${phone}: ${otpPlain}`);
-    }
+  //   // In development: log OTP for testing, don't return in response
+  //   if (process.env.NODE_ENV === "development") {
+  //     console.log(`📱 DEV OTP for +977-${phone}: ${otpPlain}`);
+  //   }
 
-    // Send SMS in production or if token is configured
-    if (process.env.NODE_ENV === "production" || process.env.SPARROW_SMS_TOKEN) {
-      try {
-        await axios.post(
-          "https://api.sparrowsms.com/v2/sms/",
-          {
-            token:   process.env.SPARROW_SMS_TOKEN,
-            from:    process.env.SPARROW_SMS_FROM || "SikshyaSanjal",
-            to:      `+977${phone}`,
-            text:    smsText,
-          },
-          { timeout: 8000 }
-        );
-      } catch (smsError) {
-        console.error("SMS sending failed:", smsError.message);
-        return res.status(502).json({
-          success: false,
-          message: "SMS service unavailable. Please try again or use password login.",
-        });
-      }
-    }
+  //   // Send SMS in production or if token is configured
+  //   if (process.env.NODE_ENV === "production" || process.env.SPARROW_SMS_TOKEN) {
+  //     try {
+  //       await axios.post(
+  //         "https://api.sparrowsms.com/v2/sms/",
+  //         {
+  //           token:   process.env.SPARROW_SMS_TOKEN,
+  //           from:    process.env.SPARROW_SMS_FROM || "SikshyaSanjal",
+  //           to:      `+977${phone}`,
+  //           text:    smsText,
+  //         },
+  //         { timeout: 8000 }
+  //       );
+  //     } catch (smsError) {
+  //       console.error("SMS sending failed:", smsError.message);
+  //       return res.status(502).json({
+  //         success: false,
+  //         message: "SMS service unavailable. Please try again or use password login.",
+  //       });
+  //     }
+  //   }
 
-    res.json({
-      success: true,
-      message: `OTP sent to +977-${phone}`,
-    });
+  //   res.json({
+  //     success: true,
+  //     message: `OTP sent to +977-${phone}`,
+  //   });
   } catch (err) {
     // Handle SMS API errors gracefully
     if (err.response?.data) {

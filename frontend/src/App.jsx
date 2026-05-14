@@ -1,7 +1,7 @@
 // App.jsx - Main application component with routing, role-based access control, and auth-aware shell.
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
-import { AppProvider, useApp } from "./context/AppContext";
+import { useApp } from "./context/AppContext";
 import GoogleCallbackPage from "./pages/Common/GoogleCallbackPage";
 import Sidebar from "./components/Sidebar";
 import LoginPage from "./pages/Common/LoginPage";
@@ -128,10 +128,9 @@ function AppShell() {
 // ─── Root ─────────────────────────────────────────────────────────────────────
 export default function App() {
   return (
-    <AppProvider>
-      <BrowserRouter>
-        <AppShell />
-        <Toaster
+    <>
+      <AppShell />
+      <Toaster
           position="top-right"
           toastOptions={{
             style: {
@@ -144,7 +143,6 @@ export default function App() {
             error:   { iconTheme: { primary: "var(--red)",   secondary: "#fff" } },
           }}
         />
-      </BrowserRouter>
-    </AppProvider>
+    </>
   );
 }

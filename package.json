@@ -4,9 +4,10 @@
   "description": "SikshyaSanjal School Management Platform - Backend API",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
-    "seed": "node seeder.js"
+    "start": "npm run frontend",
+    "frontend": "cd frontend && npm start",
+    "backend": "cd backend && npm run dev",
+    "seed": "cd backend && npm run seed"
   },
   "dependencies": {
     "axios": "^1.15.2",
