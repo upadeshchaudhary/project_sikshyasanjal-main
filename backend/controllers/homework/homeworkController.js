@@ -46,14 +46,9 @@ exports.getHomework = async (req, res) => {
       // Hard-lock to child's class — query param class is ignored entirely
       filter.class = parent.childClass;
 
-      // Only show upcoming + recent (last 30 days) homework to parents
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      filter.dueDate = { $gte: thirtyDaysAgo };
-
       const homework = await Homework.find(filter)
         .populate("postedBy", "name")
-        .sort({ dueDate: 1 }) // soonest first for parents
+        .sort({ dueDate: -1 })
         .lean();
 
       return res.json({ success: true, homework, total: homework.length });

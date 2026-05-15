@@ -23,6 +23,23 @@ function dayRange(dateInput) {
   return { $gte: start, $lt: end };
 }
 
+function monthRangeFromQuery(year, month) {
+  if (year > 2100) {
+    const adYear = year - 57;
+    const adMonth = ((month + 2) % 12) + 1;
+    const adjustedYear = adMonth < 4 ? adYear + 1 : adYear;
+    return {
+      $gte: new Date(Date.UTC(adjustedYear, adMonth - 1, 1)),
+      $lt:  new Date(Date.UTC(adjustedYear, adMonth, 1)),
+    };
+  }
+
+  return {
+    $gte: new Date(Date.UTC(year, month - 1, 1)),
+    $lt:  new Date(Date.UTC(year, month, 1)),
+  };
+}
+
 // Valid attendance statuses
 const VALID_STATUSES = ["present", "absent", "late", "excused"];
 
@@ -282,10 +299,7 @@ exports.getMonthlyAttendance = async (req, res) => {
       const records = await Attendance.find({
         school:  req.school._id,
         student: parent.childId,
-        date: {
-          $gte: new Date(Date.UTC(year, month - 1, 1)),
-          $lt:  new Date(Date.UTC(year, month, 1)),
-        },
+        date: monthRangeFromQuery(year, month),
       })
         .select("date dateBs status note")
         .sort({ date: 1 })
@@ -321,10 +335,7 @@ exports.getMonthlyAttendance = async (req, res) => {
     const filter = {
       school: req.school._id,
       class:  cls,
-      date: {
-        $gte: new Date(Date.UTC(year, month - 1, 1)),
-        $lt:  new Date(Date.UTC(year, month, 1)),
-      },
+      date: monthRangeFromQuery(year, month),
     };
 
     const records = await Attendance.find(filter)

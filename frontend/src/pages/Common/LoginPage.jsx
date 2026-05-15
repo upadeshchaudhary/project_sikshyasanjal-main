@@ -139,10 +139,10 @@ export default function LoginPage() {
         { phone, domain: schoolInfo.slug },
         { headers: { "x-school-domain": schoolInfo.slug } }
       );
-      setOtpToken(data.otpToken); // server returns a token to verify against
+      setOtpToken(data.otpToken); // kept for compatibility if backend enables token-based OTP later
       setOtpSent(true);
       setOtpCountdown(300); // 5 minutes
-      toast.success(`OTP sent to +977-${phone}`);
+      toast.success(data.message || `OTP generated for +977-${phone}`);
     } catch (err) {
       if (!err.response) {
         setErrors({ phone: "Backend unreachable. Please start the server and try again." });
@@ -577,7 +577,7 @@ function FormStep({
         <>
           {!otpSent ? (
             <ActionButton color={role.color} loading={loading} onClick={onSendOtp}>
-              Send OTP via SMS
+              Generate OTP
             </ActionButton>
           ) : (
             <>
@@ -601,7 +601,7 @@ function FormStep({
                   {otpCountdown > 0
                     ? `OTP expires in ${Math.floor(otpCountdown / 60)}:${String(otpCountdown % 60).padStart(2, "0")}`
                     : "OTP expired"
-                  } · Check your SMS
+                  } · Check backend console
                 </p>
               </Field>
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>

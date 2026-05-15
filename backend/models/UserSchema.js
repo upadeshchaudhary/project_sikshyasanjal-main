@@ -165,7 +165,7 @@ userSchema.methods.generateOtp = async function () {
   this.otpHash    = await bcrypt.hash(otpPlain, 10);
   this.otpExpiry  = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
   await this.save();
-  return otpPlain; // return raw OTP to send via SMS — never store it
+  return otpPlain; // return raw OTP for delivery/logging — never store it
 };
 
 // ── Instance method: verify OTP ──────────────────────────────────────────────

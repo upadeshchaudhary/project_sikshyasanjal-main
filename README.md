@@ -87,7 +87,7 @@ Each school operates on its **own completely isolated instance** using a unique 
 | MongoDB + Mongoose | Database & ODM |
 | JWT (jsonwebtoken) | Token-based auth |
 | bcryptjs | Password hashing (salt: 12) |
-| Sparrow SMS | OTP delivery for Nepali numbers |
+| Backend OTP logging | Demo parent OTP verification without SMS delivery |
 | Google OAuth 2.0 | Teacher & admin login |
 | Helmet + express-rate-limit | Security hardening |
 | Morgan | Request logging |
@@ -186,7 +186,7 @@ Make sure you have the following installed before you begin:
 - **Git** — [Download](https://git-scm.com/)
 - A **MongoDB Atlas** account (free tier is sufficient) — [Sign up](https://cloud.mongodb.com/)
 - A **Google Cloud Console** project with OAuth 2.0 credentials — [Setup guide](https://developers.google.com/identity/protocols/oauth2)
-- A **Sparrow SMS** account with API key — [sparrowsms.com](https://sparrowsms.com/)
+- No SMS provider is required for demo OTP login; OTPs are logged by the backend.
 
 ---
 
@@ -291,7 +291,7 @@ The app will open at: `http://localhost:3000`
 |---|---|---|---|
 | Admin | `demo` | `admin@demo.com` | `Admin@1234` |
 | Teacher | `demo` | `teacher@demo.com` | *(Google OAuth)* |
-| Parent | `demo` | `9800000000` | OTP via Sparrow SMS |
+| Parent | `demo` | `9800000000` | OTP from backend console |
 
 ---
 
@@ -316,9 +316,9 @@ GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 GOOGLE_CALLBACK_URL=http://localhost:5000/api/auth/google/callback
 
-# Sparrow SMS (OTP for parents)
-SPARROW_SMS_TOKEN=your_sparrow_sms_token
-SPARROW_SMS_FROM=SikshyaSanjal
+# Sparrow SMS is disabled for demo OTP login.
+# SPARROW_SMS_TOKEN=your_sparrow_sms_token
+# SPARROW_SMS_FROM=SikshyaSanjal
 
 # CORS
 CLIENT_URL=http://localhost:3000
@@ -358,15 +358,15 @@ SikshyaSanjal uses **different auth methods per role**, optimized for each user 
              │           │
       ┌──────▼──┐   ┌───▼──────────────────┐
       │Phone No. │   │  Google OAuth 2.0    │
-      │+ OTP via │   │  (or email/password) │
-      │Sparrow   │   └──────────────────────┘
-      │SMS       │
+      │+ OTP in  │   │  (or email/password) │
+      │backend   │   └──────────────────────┘
+      │console   │
       └──────────┘
 
 All roles → JWT issued → x-school-domain header on every request
 ```
 
-- **Parents:** Enter phone number → receive OTP via Sparrow SMS → verified → JWT issued. Returning parents can use password login.
+- **Parents:** Enter phone number → read OTP from backend console → verified → JWT issued. Returning parents can use password login.
 - **Teachers & Admins:** Google OAuth flow → backend verifies identity token → JWT issued.
 - **Every request** carries `Authorization: Bearer <token>` and `x-school-domain: <slug>`.
 

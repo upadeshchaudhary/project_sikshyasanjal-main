@@ -209,7 +209,7 @@ function NotificationsTab({ settings, updateSetting, role }) {
         </SettingRow>
       </Section>
 
-      <Section title="Delivery Channels" desc="How you receive notifications (SMS requires Sparrow SMS integration).">
+      <Section title="Delivery Channels" desc="How you receive notifications (SMS is disabled for demo).">
         <SettingRow label="SMS Notifications" desc="Receive critical alerts via SMS to your registered phone.">
           <Toggle value={false} onChange={() => toast("SMS requires admin configuration", { icon: "ℹ️" })} />
         </SettingRow>
@@ -527,7 +527,7 @@ function SchoolTab({ settings, updateSetting }) {
         </div>
       </Section>
 
-      <Section title="OTP & SMS Configuration" desc="Controls for the parent OTP login system via Sparrow SMS.">
+      <Section title="OTP Configuration" desc="Controls for the parent OTP login system.">
         <SettingRow label="Max OTP Attempts" desc="Lock account after this many failed OTP attempts.">
           <select
             className="form-input"
@@ -542,7 +542,7 @@ function SchoolTab({ settings, updateSetting }) {
           <span className="tag tag-blue">5 minutes (fixed)</span>
         </SettingRow>
         <SettingRow label="SMS Provider" desc="SMS gateway used for OTP delivery to parents.">
-          <span className="tag tag-green">Sparrow SMS (Active)</span>
+          <span className="tag tag-gray">Disabled for demo</span>
         </SettingRow>
       </Section>
 

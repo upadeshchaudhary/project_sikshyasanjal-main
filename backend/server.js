@@ -13,8 +13,6 @@ const REQUIRED_ENV = [
   "MONGO_URI",
   "JWT_SECRET",
   "CLIENT_URL",
-  "SPARROW_SMS_TOKEN",    // OTP delivery — app cannot function without this
-  "SPARROW_SMS_FROM",     // Sender ID registered with Sparrow SMS
 ];
 
 // Warn about optional-but-recommended vars

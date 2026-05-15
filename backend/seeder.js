@@ -260,7 +260,7 @@ async function seed() {
       })
     )
   );
-  console.log(`👪 ${parents.length} demo parent accounts created | OTP via Sparrow SMS | Password fallback: Parent@123`);
+  console.log(`👪 ${parents.length} demo parent accounts created | OTP in backend console | Password fallback: Parent@123`);
   console.log("   Demo parent phones: 9841111101, 9841111201, 9841111301, 9841111401");
 
   // Back-fill parentId on each demo student record
@@ -701,7 +701,7 @@ async function seed() {
   console.log("   Email:    sunita@saraswati.edu.np");
   console.log("   Password: Teacher@123\n");
 
-  console.log("👪 PARENT LOGIN (OTP via Sparrow SMS — or password fallback)");
+  console.log("👪 PARENT LOGIN (OTP in backend console — or password fallback)");
   console.log("   Phone: 9841111101  →  Aarav Sharma   (Class 9A)");
   console.log("   Phone: 9841111201  →  Aakash Tamang  (Class 9B)");
   console.log("   Phone: 9841111301  →  Arjun Pokharel (Class 10A)");

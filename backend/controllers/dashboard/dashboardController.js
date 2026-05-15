@@ -184,9 +184,6 @@ exports.getParentDashboardStats = async (req, res) => {
     const tomorrow = new Date(today);
     tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 
-    const nextWeek = new Date();
-    nextWeek.setDate(nextWeek.getDate() + 7);
-
     const [todayRec, pendingHW, feeSummary, unreadMessages] = await Promise.all([
       // Today's attendance for child
       mongoose.model("Attendance").findOne({
@@ -195,11 +192,11 @@ exports.getParentDashboardStats = async (req, res) => {
         date:    { $gte: today, $lt: tomorrow },
       }).select("status dateBs").lean(),
 
-      // Upcoming homework for child's class
+      // Homework for child's class. Demo seed data may have past due dates,
+      // so count all class homework instead of hiding it behind current date.
       mongoose.model("Homework").countDocuments({
         school:  schoolId,
         class:   parent.childClass,
-        dueDate: { $gte: new Date(), $lte: nextWeek },
       }),
 
       // Outstanding fees for child
@@ -297,4 +294,3 @@ exports.searchDashboard = async (req, res) => {
     res.status(500).json({ success: false, message: "Search failed." });
   }
 };
-

@@ -263,8 +263,6 @@ export default function Topbar({ title }) {
   const searchRef = useRef(null);
   const inputRef  = useRef(null);
   const debounceRef = useRef(null);
-
-  const isAdmin   = currentUser?.role === "admin";
   const isDark    = settings.theme === "dark";
   const initials  = currentUser?.name?.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || "?";
   const avatarBg  = AVATAR_BG[currentUser?.role] || AVATAR_BG.admin;
@@ -419,21 +417,19 @@ export default function Topbar({ title }) {
         {showNotif && <NotifDropdown onClose={() => setShowNotif(false)} />}
       </div>
 
-      {/* ── Settings — admin only ───────────────────────────────────────── */}
-      {isAdmin && (
-        <button
-          className="icon-btn"
-          onClick={() => navigate("/settings")}
-          title="Settings"
-          aria-label="Settings"
-          style={{
-            background: location.pathname === "/settings" ? "var(--blue-pale)" : undefined,
-            color: location.pathname === "/settings" ? "var(--blue)" : undefined,
-          }}
-        >
-          <Settings size={15} />
-        </button>
-      )}
+      {/* ── Settings shortcut ───────────────────────────────────────────── */}
+      <button
+        className="icon-btn"
+        onClick={() => navigate("/settings")}
+        title="Settings"
+        aria-label="Settings"
+        style={{
+          background: location.pathname === "/settings" ? "var(--blue-pale)" : undefined,
+          color: location.pathname === "/settings" ? "var(--blue)" : undefined,
+        }}
+      >
+        <Settings size={15} />
+      </button>
 
       {/* ── User chip ──────────────────────────────────────────────────── */}
       <div style={{

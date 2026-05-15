@@ -200,49 +200,36 @@ exports.parentSendOtp = async (req, res) => {
     user.otpExpiry = otpExpiry;
     await user.save();
 
-  //   // ── Send via Sparrow SMS (Nepali SMS gateway) ───────────────────────────
-  //   const smsText = `Your SikshyaSanjal OTP is: ${otpPlain}. Valid for 5 minutes. Do not share this code.`;
+    // Sparrow SMS delivery is disabled for demo/local runs.
+    // The OTP remains available in backend logs and can still be verified.
+    console.log(`DEV OTP for +977-${phone}: ${otpPlain}`);
 
-  //   // In development: log OTP for testing, don't return in response
-  //   if (process.env.NODE_ENV === "development") {
-  //     console.log(`📱 DEV OTP for +977-${phone}: ${otpPlain}`);
-  //   }
+    // const smsText = `Your SikshyaSanjal OTP is: ${otpPlain}. Valid for 5 minutes. Do not share this code.`;
+    // try {
+    //   await axios.post(
+    //     "https://api.sparrowsms.com/v2/sms/",
+    //     {
+    //       token:   process.env.SPARROW_SMS_TOKEN,
+    //       from:    process.env.SPARROW_SMS_FROM || "SikshyaSanjal",
+    //       to:      `+977${phone}`,
+    //       text:    smsText,
+    //     },
+    //     { timeout: 8000 }
+    //   );
+    // } catch (smsError) {
+    //   console.error("SMS sending failed:", smsError.message);
+    //   return res.status(502).json({
+    //     success: false,
+    //     message: "SMS service unavailable. Please try again or use password login.",
+    //   });
+    // }
 
-  //   // Send SMS in production or if token is configured
-  //   if (process.env.NODE_ENV === "production" || process.env.SPARROW_SMS_TOKEN) {
-  //     try {
-  //       await axios.post(
-  //         "https://api.sparrowsms.com/v2/sms/",
-  //         {
-  //           token:   process.env.SPARROW_SMS_TOKEN,
-  //           from:    process.env.SPARROW_SMS_FROM || "SikshyaSanjal",
-  //           to:      `+977${phone}`,
-  //           text:    smsText,
-  //         },
-  //         { timeout: 8000 }
-  //       );
-  //     } catch (smsError) {
-  //       console.error("SMS sending failed:", smsError.message);
-  //       return res.status(502).json({
-  //         success: false,
-  //         message: "SMS service unavailable. Please try again or use password login.",
-  //       });
-  //     }
-  //   }
-
-  //   res.json({
-  //     success: true,
-  //     message: `OTP sent to +977-${phone}`,
-  //   });
+    res.json({
+      success: true,
+      message: `OTP generated for +977-${phone}. Check the backend console for the demo OTP.`,
+      demoOtp: process.env.NODE_ENV !== "production" ? otpPlain : undefined,
+    });
   } catch (err) {
-    // Handle SMS API errors gracefully
-    if (err.response?.data) {
-      console.error("Sparrow SMS error:", err.response.data);
-      return res.status(502).json({
-        success: false,
-        message: "SMS service unavailable. Please try again or use password login.",
-      });
-    }
     res.status(500).json({ success: false, message: "Failed to send OTP. Please try again." });
   }
 };
@@ -515,4 +502,3 @@ exports.logout = async (req, res) => {
   // For now, acknowledge the logout and let the client clear its token.
   res.json({ success: true, message: "Logged out successfully." });
 };
-

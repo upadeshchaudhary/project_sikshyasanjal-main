@@ -15,18 +15,24 @@ export default function ParentDashboard({ user }) {
 
   useEffect(() => {
     const load = async () => {
-      try {
-        const [statsRes, hwRes] = await Promise.all([
-          axios.get("/dashboard/parent"),
-          axios.get("/homework?limit=5"),
-        ]);
-        setStats(statsRes.data);
-        setHomework(hwRes.data.homework || []);
-      } catch {
-        toast.error("Failed to load dashboard.");
-      } finally {
-        setLoading(false);
+      const [statsResult, homeworkResult] = await Promise.allSettled([
+        axios.get("/dashboard/parent"),
+        axios.get("/homework?limit=5"),
+      ]);
+
+      if (statsResult.status === "fulfilled") {
+        setStats(statsResult.value.data);
+      } else {
+        toast.error(statsResult.reason?.response?.data?.message || "Failed to load dashboard.");
       }
+
+      if (homeworkResult.status === "fulfilled") {
+        setHomework(homeworkResult.value.data.homework || []);
+      } else {
+        setHomework([]);
+      }
+
+      setLoading(false);
     };
     load();
   }, []);

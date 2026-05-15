@@ -85,7 +85,7 @@ function AppShell() {
           <Route
             path="/attendance"
             element={
-              <RoleGuard allowedRoles={["admin", "teacher"]}>
+              <RoleGuard allowedRoles={["admin", "teacher", "parent"]}>
                 <AttendancePage />
               </RoleGuard>
             }
@@ -111,7 +111,7 @@ function AppShell() {
           <Route
             path="/settings"
             element={
-              <RoleGuard allowedRoles={["admin"]}>
+              <RoleGuard allowedRoles={["admin", "teacher", "parent"]}>
                 <SettingsPage />
               </RoleGuard>
             }
