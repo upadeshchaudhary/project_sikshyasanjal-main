@@ -110,7 +110,7 @@ export default function LoginPage() {
     setLoading(true);
     setErrors({});
     try {
-      const { data } = await axios.get(`/api/auth/school/${slug}`);
+      const { data } = await axios.get(`/auth/school/${slug}`);
       setSchoolInfo(data.school);
       setStep("role");
     } catch (err) {
@@ -135,7 +135,7 @@ export default function LoginPage() {
     setErrors({});
     try {
       const { data } = await axios.post(
-        "/api/auth/parent/send-otp",
+        "/auth/parent/send-otp",
         { phone, domain: schoolInfo.slug },
         { headers: { "x-school-domain": schoolInfo.slug } }
       );
@@ -154,28 +154,6 @@ export default function LoginPage() {
           setErrors({ phone: msg });
         }
       }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // ── Step 3b: Verify school domain and move to role selection ─────────────────────
-  async function handleDomainSubmit() {
-    if (!slug) return setError("Please enter school domain");
-
-    setLoading(true);
-    setError("");
-
-    try {
-      const res = await axios.get(`/school/${slug}`);
-
-      // Save school info globally (IMPORTANT)
-      setSchoolInfo(res.data);
-
-      // Move to next step (login form)
-      setStep(2);
-    } catch (err) {
-      setError("School not found. Please check domain.");
     } finally {
       setLoading(false);
     }
@@ -208,13 +186,13 @@ export default function LoginPage() {
       if (selectedRole === "parent") {
         if (parentMode === "otp") {
           res = await axios.post(
-            "/api/auth/parent/verify-otp",
+            "/auth/parent/verify-otp",
             { phone, otp, otpToken },
             { headers: { "x-school-domain": schoolInfo.slug } }
           );
         } else {
           res = await axios.post(
-            "/api/auth/parent/login",
+            "/auth/parent/login",
             { phone, password },
             { headers: { "x-school-domain": schoolInfo.slug } }
           );
@@ -222,7 +200,7 @@ export default function LoginPage() {
       } else {
         // Admin & Teacher use email + password (Google OAuth handled separately)
         res = await axios.post(
-          "/api/auth/login",
+          "/auth/login",
           { email, password, role: selectedRole },
           { headers: { "x-school-domain": schoolInfo.slug } }
         );
@@ -254,8 +232,10 @@ export default function LoginPage() {
   function handleGoogleLogin() {
     if (!schoolInfo) return;
     // Redirect to backend Google OAuth with school slug as state
-    window.location.href = `${process.env.REACT_APP_API_URL}/api/auth/google?school=${schoolInfo.slug}&role=${selectedRole}`;
+    const apiBase = axios.defaults.baseURL;
+    window.location.href = `${apiBase}/auth/google?school=${schoolInfo.slug}&role=${selectedRole}`;
   }
+
 
   // ─────────────────────────────────────────────────────────────────────────
   return (

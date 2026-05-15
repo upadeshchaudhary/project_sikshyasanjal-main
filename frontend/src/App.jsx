@@ -49,6 +49,7 @@ function AppShell() {
     return (
       <Routes>
         <Route path="/" element={<LoginPage />} />
+        <Route path="/auth/callback" element={<GoogleCallbackPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );

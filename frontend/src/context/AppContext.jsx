@@ -286,12 +286,16 @@ export const AppProvider = ({ children }) => {
         }
       } catch (err) {
         if (cancelled) return;
-        // Token expired or invalid — clear silently. Do NOT call handleLogout()
-        // here because that would double-clear and show unwanted toasts.
-        clearStorage();
-        clearAxiosAuth();
-        if (err.response?.status === 403) {
-          toast.error("Your account has been disabled. Contact the school administrator.");
+        
+        // Only clear session if the server explicitly rejects the token (401)
+        // or the account is disabled (403). For other errors (network issues, 500s),
+        // we keep the token so the user can try again on next refresh.
+        if (err.response?.status === 401 || err.response?.status === 403) {
+          clearStorage();
+          clearAxiosAuth();
+          if (err.response?.status === 403) {
+            toast.error("Your account has been disabled. Contact the school administrator.");
+          }
         }
       } finally {
         restoringRef.current = false;

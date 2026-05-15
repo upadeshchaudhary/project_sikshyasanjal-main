@@ -78,15 +78,15 @@ app.use(express.urlencoded({ extended: true, limit: "10kb" }));
 
 // ── Rate limiters ─────────────────────────────────────────────────────────────
 
-// General API limiter — prevents brute force on login endpoints
-const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, message: "Too many requests. Please try again later." },
-});
-app.use("/api/", generalLimiter);
+// // General API limiter — prevents brute force on login endpoints
+// const generalLimiter = rateLimit({
+//   windowMs: 15 * 60 * 1000, // 15 minutes
+//   max: 100,
+//   standardHeaders: true,
+//   legacyHeaders: false,
+//   message: { success: false, message: "Too many requests. Please try again later." },
+// });
+// app.use("/api/", generalLimiter);
 
 // OTP-specific limiter — PRD spec: max 3 per 10 minutes per IP
 // FIXED: correct paths matching the auth router structure
