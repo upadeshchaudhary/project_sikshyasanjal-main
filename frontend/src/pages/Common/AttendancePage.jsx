@@ -101,16 +101,12 @@ function NepalClock() {
   const ampm    = n.getHours() >= 12 ? "PM" : "AM";
 
   return (
-    <div style={{
-      display: "flex", alignItems: "center", gap: 10,
-      background: "var(--card)", border: "1px solid var(--border)",
-      borderRadius: 10, padding: "8px 14px", boxShadow: "var(--shadow)",
-    }}>
-      <Clock size={14} style={{ color: "var(--blue)" }} />
-      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 15, fontWeight: 700, color: "var(--text)" }}>
+    <div className="nepal-clock">
+      <Clock size={14} className="nepal-clock-icon" />
+      <span className="nepal-clock-text">
         {h}:{m}:{s}
       </span>
-      <span style={{ fontSize: 11, color: "var(--text-3)" }}>{ampm} · NST</span>
+      <span className="nepal-clock-subtitle">{ampm} · NST</span>
     </div>
   );
 }
@@ -119,15 +115,11 @@ function NepalClock() {
 function MonthNav({ year, month, today, onChange }) {
   const canNext = !(year === today.year && month >= today.month);
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <button className="btn btn-outline btn-sm"
-        onClick={() => onChange(month === 1 ? year - 1 : year, month === 1 ? 12 : month - 1)}>
+    <div className="month-nav">
+      <button className="btn btn-outline btn-sm" onClick={() => onChange(month === 1 ? year - 1 : year, month === 1 ? 12 : month - 1)}>
         <ChevronLeft size={14} />
       </button>
-      <span style={{
-        fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 700,
-        color: "var(--text)", minWidth: 160, textAlign: "center",
-      }}>
+      <span className="month-nav-label">
         {BS_MONTH_NAMES[month - 1]} {year} BS
       </span>
       <button className="btn btn-outline btn-sm" disabled={!canNext}
@@ -141,7 +133,7 @@ function MonthNav({ year, month, today, onChange }) {
 // ── Legend ────────────────────────────────────────────────────────────────────
 function Legend() {
   return (
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+    <div className="legend-row">
       {[
         ["P", "Present",  "#15803D", "#DCFCE7"],
         ["A", "Absent",   "#DC2626", "#FEE2E2"],
@@ -150,12 +142,8 @@ function Legend() {
         ["H", "Holiday",  "#DC2626", "#FEF2F2"],
         ["—", "No school / Future", "var(--border)", "transparent"],
       ].map(([badge, label, color, bg]) => (
-        <div key={label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--text-2)" }}>
-          <div style={{
-            width: 20, height: 20, borderRadius: 5, background: bg, color,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 9, fontWeight: 800, border: "1px solid var(--border)",
-          }}>
+        <div key={label} className="legend-item">
+          <div className="legend-badge" style={{ background: bg, color }}>
             {badge}
           </div>
           {label}
@@ -181,7 +169,7 @@ function StudentCalendar({ studentId, studentName, studentRollNo, studentClass, 
       setLoading(true);
       try {
         const res = await axios.get("/attendance/monthly", {
-          params: { year, month, student: studentId },
+          params: { year, month, student: studentId, class: studentClass },
         });
         if (cancelled) return;
         // Build map of dateBs → status
@@ -229,20 +217,20 @@ function StudentCalendar({ studentId, studentName, studentRollNo, studentClass, 
     : null;
 
   return (
-    <div className="card" style={{ marginBottom: 0 }}>
-      <div className="card-header" style={{ paddingBottom: 10 }}>
+    <div className="card mb-0">
+      <div className="card-header card-header-compact">
         <div>
-          <div className="card-title" style={{ fontSize: 14 }}>{studentName}</div>
-          <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>
+          <div className="card-title card-title-sm">{studentName}</div>
+          <div className="text-xs text-muted mt-2">
             Class {studentClass} · Roll {studentRollNo}
           </div>
         </div>
         <MonthNav year={year} month={month} today={today} onChange={onMonthChange} />
       </div>
 
-      <div className="card-body" style={{ paddingTop: 0 }}>
+      <div className="card-body pt-0">
         {loading ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="flex-col gap-8">
             <Skeleton height={24} />
             <Skeleton height={160} radius={8} />
             <Skeleton height={48} radius={8} />
@@ -250,19 +238,19 @@ function StudentCalendar({ studentId, studentName, studentRollNo, studentClass, 
         ) : (
           <>
             {/* Day headers */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 3, marginBottom: 4 }}>
+            <div className="calendar-grid mb-4">
               {DAY_NAMES.map((d, i) => (
-                <div key={d} style={{
-                  textAlign: "center", fontSize: 10, fontWeight: 700, paddingBottom: 4,
-                  color: i === 6 ? "#DC2626" : i === 5 ? "#D97706" : "var(--text-3)",
-                }}>
+                <div
+                  key={d}
+                  className={`calendar-header ${i === 6 ? "calendar-header-sat" : i === 5 ? "calendar-header-fri" : ""}`}
+                >
                   {d}
                 </div>
               ))}
             </div>
 
             {/* Calendar grid */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 3 }}>
+            <div className="calendar-grid">
               {Array.from({ length: firstDow }, (_, i) => <div key={`e${i}`} />)}
               {Array.from({ length: days }, (_, i) => {
                 const day    = i + 1;
@@ -293,30 +281,27 @@ function StudentCalendar({ studentId, studentName, studentRollNo, studentClass, 
                     key={day}
                     onMouseEnter={() => setHovered(day)}
                     onMouseLeave={() => setHovered(null)}
+                    className={`calendar-cell${future ? " calendar-cell-future" : ""}`}
                     style={{
-                      borderRadius: 6, padding: "6px 2px", textAlign: "center",
-                      background: bg, opacity: future ? 0.35 : 1,
+                      background: bg,
+                      opacity: future ? 0.35 : 1,
                       border: isToday
                         ? "2px solid var(--blue)"
                         : hovered === day && !future
                           ? "2px solid var(--border-mid)"
                           : "2px solid transparent",
-                      transition: "border 0.1s",
-                      position: "relative",
-                      cursor: future ? "default" : "default",
                     }}
                   >
-                    <div style={{
-                      fontFamily: "'JetBrains Mono',monospace",
-                      fontSize: 11, fontWeight: 600, color, lineHeight: 1.2,
-                    }}>
+                    <div className="calendar-day-label" style={{ color }}>
                       {day}
                     </div>
                     {badge && (
-                      <div style={{ fontSize: 8, fontWeight: 800, color, marginTop: 1 }}>{badge}</div>
+                      <div className="legend-badge" style={{ marginTop: 1, color }}>
+                        {badge}
+                      </div>
                     )}
                     {isFri && !future && !isHol && (
-                      <div style={{ position: "absolute", bottom: 1, right: 2, fontSize: 6, color: "#D97706", fontWeight: 700 }}>½</div>
+                      <div className="half-day-flag">½</div>
                     )}
                   </div>
                 );
@@ -337,22 +322,18 @@ function StudentCalendar({ studentId, studentName, studentRollNo, studentClass, 
               const col    = isHol ? "#DC2626" : (STATUS_COLOR[status] || "var(--text-3)");
               const bg2    = isHol ? "#FEF2F2" : (STATUS_BG[status] || "var(--canvas)");
               return (
-                <div style={{
-                  marginTop: 10, padding: "8px 12px",
-                  background: bg2, borderRadius: 8,
-                  display: "flex", alignItems: "center", gap: 8, fontSize: 12,
-                }}>
+                <div className="hover-tooltip" style={{ background: bg2 }}>
                   <span className="bs-date">{hovered} {BS_MONTH_NAMES[month - 1]} {year} BS</span>
-                  <span style={{ color: col, fontWeight: 700 }}>{label}</span>
+                  <span className="font-semibold" style={{ color: col }}>{label}</span>
                   {isFriday(dow) && !isHol && (
-                    <span style={{ fontSize: 10, color: "#D97706" }}>· Half day (Friday)</span>
+                    <span className="text-xs" style={{ color: "#D97706" }}>· Half day (Friday)</span>
                   )}
                 </div>
               );
             })()}
 
             {/* Summary row */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 6, marginTop: 14 }}>
+            <div className="summary-grid">
               {[
                 { label: "Present",  val: counts.present, color: "#15803D", bg: "#DCFCE7" },
                 { label: "Absent",   val: counts.absent,  color: "#DC2626", bg: "#FEE2E2" },
@@ -366,20 +347,11 @@ function StudentCalendar({ studentId, studentName, studentRollNo, studentClass, 
                   bg: "var(--canvas)",
                 },
               ].map(item => (
-                <div key={item.label} style={{
-                  background: item.bg, borderRadius: 8,
-                  padding: "8px 4px", textAlign: "center",
-                }}>
-                  <div style={{
-                    fontFamily: "'JetBrains Mono',monospace",
-                    fontSize: 16, fontWeight: 700, color: item.color,
-                  }}>
+                <div key={item.label} className="summary-pill" style={{ background: item.bg }}>
+                  <div className="summary-value" style={{ color: item.color }}>
                     {item.val}
                   </div>
-                  <div style={{
-                    fontSize: 9, color: "var(--text-3)", fontWeight: 600,
-                    marginTop: 2, textTransform: "uppercase", letterSpacing: "0.05em",
-                  }}>
+                  <div className="summary-label">
                     {item.label}
                   </div>
                 </div>
@@ -423,6 +395,10 @@ export default function AttendancePage() {
 
   // FIXED: today's BS key for marking
   const todayKey = formatBsDate(today.year, today.month, today.day);
+  const todayAdKey = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  }, []);
 
   // FIXED: day-of-week for today (to check if school is open)
   const todayFirstDow = getFirstDayOfMonth(today.year, today.month);
@@ -430,10 +406,13 @@ export default function AttendancePage() {
   const todayIsHoliday = holidays.some(h => h.startDateBs === todayKey || h.startDateBs?.startsWith(todayKey));
   const schoolClosedToday = isSaturday(todayDow) || todayIsHoliday;
 
-  // FIXED: fetch holidays from API (not hardcoded)
+  // FIXED: fetch holidays from calendar events API (using supported /calendar route)
   useEffect(() => {
-    axios.get("/calendar/holidays", { params: { academicYear: `${today.year}-${String(today.year - 2056).padStart(2, "0")}` } })
-      .then(res => setHolidays(res.data.holidays || []))
+    axios.get("/calendar", { params: { year: today.year } })
+      .then(res => {
+        const events = res.data.events || [];
+        setHolidays(events.filter(event => event.type === "holiday"));
+      })
       .catch(() => setHolidays([]));
   }, [today.year]);
 
@@ -505,7 +484,7 @@ export default function AttendancePage() {
     try {
       await axios.post("/attendance/bulk", {
         records,
-        date:    todayKey,
+        date:    todayAdKey,
         dateBs:  todayKey,
         class:   selectedClass,
       });
@@ -563,7 +542,7 @@ export default function AttendancePage() {
               </p>
             </div>
           </div>
-          <div style={{ marginBottom: 12 }}><Legend /></div>
+          <div className="mb-12"><Legend /></div>
           {/* FIXED: real student data from API via currentUser */}
           <StudentCalendar
             studentId={childId}
@@ -595,17 +574,17 @@ export default function AttendancePage() {
               Academic Year {today.year} BS (Baisakh–Chaitra)
             </p>
           </div>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <div className="d-flex gap-10 items-center flex-wrap">
             <NepalClock />
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className="d-flex gap-8">
               <button
-                className={`btn btn-sm ${view === "calendar" ? "btn-primary" : "btn-outline"}`}
+                className={`btn btn-sm ${view === "calendar" ? "btn-primary" : "btn-outline"} btn-icon`}
                 onClick={() => setView("calendar")}
               >
                 Calendar
               </button>
               <button
-                className={`btn btn-sm ${view === "daily" ? "btn-primary" : "btn-outline"}`}
+                className={`btn btn-sm ${view === "daily" ? "btn-primary" : "btn-outline"} btn-icon`}
                 onClick={() => setView("daily")}
               >
                 Mark Today
@@ -616,12 +595,8 @@ export default function AttendancePage() {
 
         {/* School closed alert */}
         {view === "daily" && schoolClosedToday && (
-          <div style={{
-            display: "flex", alignItems: "center", gap: 10,
-            padding: "12px 16px", background: "#FEF2F2",
-            border: "1px solid #FCA5A5", borderRadius: 10, marginBottom: 16, fontSize: 13,
-          }}>
-            <Info size={16} style={{ color: "#DC2626", flexShrink: 0 }} />
+          <div className="alert-warning">
+            <Info size={16} className="alert-danger-icon" />
             <span style={{ color: "#DC2626", fontWeight: 500 }}>
               Today is a {isSaturday(todayDow) ? "Saturday holiday" : "public holiday"} — school is closed.
               No attendance marking required.
@@ -630,10 +605,9 @@ export default function AttendancePage() {
         )}
 
         {/* Class selector — FIXED: role-scoped from API */}
-        <div className="filter-bar" style={{ marginBottom: 16 }}>
+        <div className="filter-bar mb-16">
           <select
-            className="form-select"
-            style={{ width: "auto" }}
+            className="form-select w-auto"
             value={selectedClass}
             onChange={e => setSelectedClass(e.target.value)}
           >

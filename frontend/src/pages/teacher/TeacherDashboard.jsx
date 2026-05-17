@@ -18,7 +18,7 @@ export default function TeacherDashboard({ user }) {
       try {
         const [statsRes, hwRes] = await Promise.all([
           axios.get("/dashboard/teacher"),
-          axios.get("/homework?limit=5"),
+          axios.get("/homework"),
         ]);
         setStats(statsRes.data);
         setHomework(hwRes.data.homework || []);

@@ -323,7 +323,21 @@ exports.getMonthlyAttendance = async (req, res) => {
       });
     }
 
-    // Admin/Teacher: class-level monthly summary
+    // Admin/Teacher: student-level monthly calendar or class-level summary
+    const studentId = req.query.student?.trim();
+    if (studentId) {
+      const records = await Attendance.find({
+        school:  req.school._id,
+        student: studentId,
+        date:    monthRangeFromQuery(year, month),
+      })
+        .select("date dateBs status note")
+        .sort({ date: 1 })
+        .lean();
+
+      return res.json({ success: true, records, student: studentId, year, month });
+    }
+
     const cls = req.query.class?.trim();
     if (!cls) {
       return res.status(400).json({
@@ -335,7 +349,7 @@ exports.getMonthlyAttendance = async (req, res) => {
     const filter = {
       school: req.school._id,
       class:  cls,
-      date: monthRangeFromQuery(year, month),
+      date:   monthRangeFromQuery(year, month),
     };
 
     const records = await Attendance.find(filter)

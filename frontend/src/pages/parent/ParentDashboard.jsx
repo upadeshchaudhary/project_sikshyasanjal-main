@@ -17,7 +17,7 @@ export default function ParentDashboard({ user }) {
     const load = async () => {
       const [statsResult, homeworkResult] = await Promise.allSettled([
         axios.get("/dashboard/parent"),
-        axios.get("/homework?limit=5"),
+        axios.get("/homework"),
       ]);
 
       if (statsResult.status === "fulfilled") {

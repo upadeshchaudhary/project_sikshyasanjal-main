@@ -37,16 +37,20 @@ export default function AdminDashboard({ user }) {
 
     try {
       const [statsRes, noticesRes, homeworkRes] = await Promise.all([
-        axios.get("/dashboard/admin"),
-        axios.get("/notices?limit=5&important=true"),
-        axios.get("/homework?limit=5&upcoming=true"),
+        axios.get("/dashboard/admin/stats"),
+        axios.get("/notices/important"),
+        axios.get("/homework"),
       ]);
 
       setStats(statsRes.data);
       setNotices(noticesRes.data.notices  || []);
       setHomework(homeworkRes.data.homework || []);
-    } catch {
+    } catch (err) {
       if (!isRefresh) toast.error("Failed to load dashboard data.");
+      // Set default fallback values to prevent undefined errors
+      setStats(null);
+      setNotices([]);
+      setHomework([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
