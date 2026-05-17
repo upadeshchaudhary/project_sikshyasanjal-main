@@ -36,6 +36,20 @@ const ROLE_COLOR = {
   parent:  "linear-gradient(135deg,#6D28D9,#8B5CF6)",
 };
 
+function Field({ label, error, children }) {
+  const parts = label.split("*");
+  return (
+    <div className="form-group">
+      <label className="form-label">
+        {parts[0]}
+        {parts.length > 1 && <span style={{ color: "var(--red)", marginLeft: 2 }}>*</span>}
+      </label>
+      {children}
+      {error && <p className="form-error">{error}</p>}
+    </div>
+  );
+}
+
 // ── Compose modal ─────────────────────────────────────────────────────────────
 function ComposeModal({ onClose, onSent }) {
   const { currentUser } = useApp();
@@ -98,8 +112,7 @@ function ComposeModal({ onClose, onSent }) {
           <button className="btn btn-ghost btn-sm" onClick={onClose}><X size={16} /></button>
         </div>
         <div className="modal-body">
-          <div className="form-group">
-            <label className="form-label">To *</label>
+          <Field label="To *" error={errors.to}>
             <select
               className={`form-select ${errors.to ? "error" : ""}`}
               value={form.to}
@@ -112,24 +125,20 @@ function ComposeModal({ onClose, onSent }) {
                 </option>
               ))}
             </select>
-            {errors.to && <p className="form-error">{errors.to}</p>}
-          </div>
-          <div className="form-group">
-            <label className="form-label">Subject</label>
+          </Field>
+          <Field label="Subject">
             <input className="form-input" placeholder="e.g. Regarding attendance"
               value={form.subject}
               onChange={e => setForm(p => ({ ...p, subject: e.target.value }))} />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Message *</label>
+          </Field>
+          <Field label="Message *" error={errors.body}>
             <textarea className="form-input" rows={5}
               placeholder="Write your message…"
               style={{ resize: "vertical" }}
               value={form.body}
               onChange={e => { setForm(p => ({ ...p, body: e.target.value })); setErrors(p => ({ ...p, body: "" })); }}
             />
-            {errors.body && <p className="form-error">{errors.body}</p>}
-          </div>
+          </Field>
         </div>
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose} disabled={sending}>Cancel</button>

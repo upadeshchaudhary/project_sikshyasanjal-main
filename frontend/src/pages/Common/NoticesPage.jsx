@@ -8,6 +8,20 @@ import toast from "react-hot-toast";
 const CATEGORIES = ["exam","holiday","event","urgent","general"];
 const catColors  = { exam:"tag-blue", holiday:"tag-green", event:"tag-purple", urgent:"tag-red", general:"tag-gray" };
 
+function Field({ label, error, children }) {
+  const parts = label.split("*");
+  return (
+    <div className="form-group">
+      <label className="form-label">
+        {parts[0]}
+        {parts.length > 1 && <span style={{ color: "var(--red)", marginLeft: 2 }}>*</span>}
+      </label>
+      {children}
+      {error && <p className="form-error">{error}</p>}
+    </div>
+  );
+}
+
 export default function NoticesPage() {
   const { currentUser } = useApp();
   const role     = currentUser?.role;
@@ -129,21 +143,18 @@ export default function NoticesPage() {
             </div>
             <form onSubmit={handlePost}>
               <div className="modal-body">
-                <div className="form-group">
-                  <label className="form-label">Title *</label>
+                <Field label="Title *">
                   <input className="form-input" required value={form.title} onChange={e => setForm(p=>({...p,title:e.target.value}))}/>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Category</label>
+                </Field>
+                <Field label="Category">
                   <select className="form-input" value={form.category} onChange={e => setForm(p=>({...p,category:e.target.value}))}>
                     {CATEGORIES.map(c => <option key={c} style={{textTransform:"capitalize"}}>{c}</option>)}
                   </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Content *</label>
+                </Field>
+                <Field label="Content *">
                   <textarea className="form-input" rows={4} required value={form.content}
                     onChange={e => setForm(p=>({...p,content:e.target.value}))}/>
-                </div>
+                </Field>
                 <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", fontSize:13 }}>
                   <input type="checkbox" checked={form.important}
                     onChange={e => setForm(p=>({...p,important:e.target.checked}))}

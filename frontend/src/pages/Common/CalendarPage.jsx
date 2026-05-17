@@ -34,6 +34,20 @@ function Skeleton({ height = 16, width = "100%", radius = 6 }) {
   return <div className="skeleton" style={{ height, width, borderRadius: radius }} />;
 }
 
+function Field({ label, error, children }) {
+  const parts = label.split("*");
+  return (
+    <div className="form-group">
+      <label className="form-label">
+        {parts[0]}
+        {parts.length > 1 && <span style={{ color: "var(--red)", marginLeft: 2 }}>*</span>}
+      </label>
+      {children}
+      {error && <p className="form-error">{error}</p>}
+    </div>
+  );
+}
+
 function AddModal({ year, month, onClose, onSaved }) {
   useEffect(() => {
     const h = (e) => { if (e.key === "Escape") onClose(); };
@@ -63,10 +77,6 @@ function AddModal({ year, month, onClose, onSaved }) {
     } catch (err) { toast.error(err.response?.data?.message || "Failed to add event."); }
     finally { setSaving(false); }
   };
-
-  const Field = ({ label, error, children }) => (
-    <div className="form-group"><label className="form-label">{label}</label>{children}{error && <p className="form-error">{error}</p>}</div>
-  );
 
   return (
     <div className="modal-overlay" onClick={onClose}>

@@ -54,6 +54,20 @@ function ViewModal({ teacher, onClose }) {
   );
 }
 
+function Field({ label, error, children }) {
+  const parts = label.split("*");
+  return (
+    <div className="form-group">
+      <label className="form-label">
+        {parts[0]}
+        {parts.length > 1 && <span style={{ color: "var(--red)", marginLeft: 2 }}>*</span>}
+      </label>
+      {children}
+      {error && <p className="form-error">{error}</p>}
+    </div>
+  );
+}
+
 function TeacherModal({ teacher, classes, onSave, onClose, saving }) {
   useEscKey(onClose);
   const isEdit = !!teacher;
@@ -79,10 +93,6 @@ function TeacherModal({ teacher, classes, onSave, onClose, saving }) {
     setErrors(e);
     return Object.keys(e).length === 0;
   };
-
-  const Field = ({ label, error, children }) => (
-    <div className="form-group"><label className="form-label">{label}</label>{children}{error && <p className="form-error">{error}</p>}</div>
-  );
 
   return (
     <div className="modal-overlay" onClick={onClose}>

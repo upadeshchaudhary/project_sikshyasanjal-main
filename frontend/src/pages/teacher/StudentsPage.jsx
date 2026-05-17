@@ -110,6 +110,20 @@ function ViewModal({ student, isParent, onClose }) {
   );
 }
 
+function Field({ label, error, children }) {
+  const parts = label.split("*");
+  return (
+    <div className="form-group">
+      <label className="form-label">
+        {parts[0]}
+        {parts.length > 1 && <span style={{ color: "var(--red)", marginLeft: 2 }}>*</span>}
+      </label>
+      {children}
+      {error && <p className="form-error">{error}</p>}
+    </div>
+  );
+}
+
 // ── Add / Edit modal ──────────────────────────────────────────────────────────
 function StudentModal({ student, classes, onSave, onClose, saving }) {
   const isEdit = !!student;
@@ -165,14 +179,6 @@ function StudentModal({ student, classes, onSave, onClose, saving }) {
       rollNo: Number(form.rollNo),
     });
   };
-
-  const Field = ({ label, error, children }) => (
-    <div className="form-group">
-      <label className="form-label">{label}</label>
-      {children}
-      {error && <p className="form-error">{error}</p>}
-    </div>
-  );
 
   return (
     <div className="modal-overlay" onClick={onClose}>

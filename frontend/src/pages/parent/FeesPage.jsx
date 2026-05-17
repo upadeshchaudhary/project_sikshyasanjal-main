@@ -49,6 +49,20 @@ function useEscapeKey(handler) {
   }, [handler]);
 }
 
+function Field({ label, error, children }) {
+  const parts = label.split("*");
+  return (
+    <div className="form-group">
+      <label className="form-label">
+        {parts[0]}
+        {parts.length > 1 && <span style={{ color: "var(--red)", marginLeft: 2 }}>*</span>}
+      </label>
+      {children}
+      {error && <p className="form-error">{error}</p>}
+    </div>
+  );
+}
+
 // ── Payment modal ─────────────────────────────────────────────────────────────
 function PaymentModal({ fee, onClose, onSaved }) {
   useEscapeKey(onClose);
@@ -122,8 +136,7 @@ function PaymentModal({ fee, onClose, onSaved }) {
           </div>
 
           <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Amount Received (NPR) *</label>
+            <Field label="Amount Received (NPR) *" error={errors.paidAmount}>
               <input
                 type="number" min={1} max={balance}
                 className={`form-input mono ${errors.paidAmount ? "error" : ""}`}
@@ -131,28 +144,24 @@ function PaymentModal({ fee, onClose, onSaved }) {
                 value={form.paidAmount}
                 onChange={e => setForm(p => ({ ...p, paidAmount: e.target.value }))}
               />
-              {errors.paidAmount && <p className="form-error">{errors.paidAmount}</p>}
-            </div>
-            <div className="form-group">
-              <label className="form-label">Payment Method</label>
+            </Field>
+            <Field label="Payment Method">
               <select className="form-select"
                 value={form.paymentMethod}
                 onChange={e => setForm(p => ({ ...p, paymentMethod: e.target.value }))}>
                 {PAY_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
               </select>
-            </div>
+            </Field>
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Payment Date (BS) *</label>
+          <Field label="Payment Date (BS) *" error={errors.paidDateBs}>
             <input
               className={`form-input mono ${errors.paidDateBs ? "error" : ""}`}
               placeholder="e.g. 2081-05-20"
               value={form.paidDateBs}
               onChange={e => setForm(p => ({ ...p, paidDateBs: e.target.value }))}
             />
-            {errors.paidDateBs && <p className="form-error">{errors.paidDateBs}</p>}
-          </div>
+          </Field>
         </div>
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose} disabled={saving}>Cancel</button>
@@ -220,14 +229,6 @@ function AddFeeModal({ classes, onClose, onSaved }) {
       setSaving(false);
     }
   };
-
-  const Field = ({ label, error, children }) => (
-    <div className="form-group">
-      <label className="form-label">{label}</label>
-      {children}
-      {error && <p className="form-error">{error}</p>}
-    </div>
-  );
 
   return (
     <div className="modal-overlay" onClick={onClose}>
