@@ -64,7 +64,7 @@ export default function RoutinePage() {
   useEffect(() => {
     if (!selectedClass) return;
     setLoading(true);
-    axios.get(`/routine/${selectedClass}`)
+    axios.get(`/routine/${encodeURIComponent(selectedClass)}`)
       .then(res => setRoutine(res.data.routine || null))
       .catch(() => setRoutine(null))
       .finally(() => setLoading(false));

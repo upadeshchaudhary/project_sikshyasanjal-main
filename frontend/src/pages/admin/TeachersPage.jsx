@@ -70,8 +70,12 @@ function TeacherModal({ teacher, classes, onSave, onClose, saving }) {
   const validate = () => {
     const e = {};
     if (!form.name?.trim())  e.name  = "Name is required.";
+    if (!form.subject?.trim()) e.subject = "Subject is required.";
     if (!form.email?.trim()) e.email = "Email is required.";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Enter a valid email.";
+    if (form.phone && !/^(98|97|96)\d{8}$/.test(form.phone.trim())) {
+      e.phone = "Enter a valid Nepali mobile number (98/97/96XXXXXXXX).";
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -93,8 +97,8 @@ function TeacherModal({ teacher, classes, onSave, onClose, saving }) {
               <input className={`form-input ${errors.name ? "error" : ""}`} placeholder="e.g. Sunita Koirala"
                 value={form.name} onChange={e => set("name", e.target.value)} disabled={isEdit && !false /* admin can edit */} />
             </Field>
-            <Field label="Subject">
-              <input className="form-input" placeholder="e.g. Mathematics" value={form.subject} onChange={e => set("subject", e.target.value)} />
+            <Field label="Subject *" error={errors.subject}>
+              <input className={`form-input ${errors.subject ? "error" : ""}`} placeholder="e.g. Mathematics" value={form.subject} onChange={e => set("subject", e.target.value)} />
             </Field>
           </div>
           <div className="form-row">
@@ -102,8 +106,8 @@ function TeacherModal({ teacher, classes, onSave, onClose, saving }) {
               <input type="email" className={`form-input ${errors.email ? "error" : ""}`} placeholder="teacher@school.edu.np"
                 value={form.email} onChange={e => set("email", e.target.value)} />
             </Field>
-            <Field label="Phone">
-              <input className="form-input mono" placeholder="98XXXXXXXX" maxLength={10}
+            <Field label="Phone" error={errors.phone}>
+              <input className={`form-input mono ${errors.phone ? "error" : ""}`} placeholder="98XXXXXXXX" maxLength={10}
                 value={form.phone} onChange={e => set("phone", e.target.value.replace(/\D/g, ""))} />
             </Field>
           </div>
@@ -132,7 +136,21 @@ function TeacherModal({ teacher, classes, onSave, onClose, saving }) {
         </div>
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose} disabled={saving}>Cancel</button>
-          <button className="btn btn-primary" onClick={() => { if (validate()) onSave(form); }} disabled={saving}>
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              if (!validate()) return;
+              onSave({
+                ...form,
+                name: form.name.trim(),
+                subject: form.subject.trim(),
+                email: form.email.trim().toLowerCase(),
+                phone: form.phone?.trim() || "",
+                qualification: form.qualification?.trim() || "",
+              });
+            }}
+            disabled={saving}
+          >
             {saving ? "Saving…" : isEdit ? "Save Changes" : "Add Teacher"}
           </button>
         </div>

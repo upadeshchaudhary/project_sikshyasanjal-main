@@ -53,10 +53,14 @@ function ViewModal({ student, isParent, onClose }) {
 
   const initials = student.name?.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || "?";
 
+  const normalizedGender = student.gender
+    ? student.gender.charAt(0).toUpperCase() + student.gender.slice(1).toLowerCase()
+    : "—";
+
   const rows = [
     ["Class",          <span className="tag tag-blue">{student.class}</span>],
     ["Roll Number",    <span className="mono">{student.rollNo}</span>],
-    ["Gender",         student.gender || "—"],
+    ["Gender",         normalizedGender],
     ["Date of Birth (BS)", student.dobBs || student.dob || "—"],
     ["Address",        student.address || "—"],
     ["Admission Year", student.admissionYear ? `${student.admissionYear} BS` : "—"],
@@ -129,18 +133,37 @@ function StudentModal({ student, classes, onSave, onClose, saving }) {
     const e = {};
     if (!form.name?.trim())    e.name   = "Full name is required.";
     if (!form.rollNo)          e.rollNo = "Roll number is required.";
-    if (isNaN(Number(form.rollNo)) || Number(form.rollNo) < 1)
+    if (!Number.isInteger(Number(form.rollNo)) || Number(form.rollNo) < 1)
                                e.rollNo = "Roll number must be a positive number.";
     if (!form.class?.trim())   e.class  = "Class is required.";
+    if (!["Male", "Female", "Other"].includes(form.gender)) {
+      e.gender = "Please select a valid gender.";
+    }
     if (form.parentPhone && !/^(98|97|96)\d{8}$/.test(form.parentPhone.trim()))
                                e.parentPhone = "Enter a valid Nepali mobile number (98/97/96XXXXXXXX).";
+    if (form.admissionYear && !/^\d{4}$/.test(form.admissionYear.trim())) {
+      e.admissionYear = "Admission year must be a 4-digit BS year.";
+    }
+    if (form.dobBs && !/^\d{4}-\d{2}-\d{2}$/.test(form.dobBs.trim())) {
+      e.dobBs = "Date of birth must be in YYYY-MM-DD format.";
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const handleSave = () => {
     if (!validate()) return;
-    onSave({ ...form, rollNo: Number(form.rollNo) });
+    onSave({
+      ...form,
+      name: form.name.trim(),
+      class: form.class.trim(),
+      parentName: form.parentName?.trim() || "",
+      address: form.address?.trim() || "",
+      dobBs: form.dobBs?.trim() || "",
+      admissionYear: form.admissionYear?.trim() || "",
+      gender: form.gender.toLowerCase(),
+      rollNo: Number(form.rollNo),
+    });
   };
 
   const Field = ({ label, error, children }) => (
@@ -181,7 +204,7 @@ function StudentModal({ student, classes, onSave, onClose, saving }) {
                 {classes.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </Field>
-            <Field label="Gender">
+            <Field label="Gender" error={errors.gender}>
               <select className="form-select" value={form.gender} onChange={e => set("gender", e.target.value)}>
                 <option>Male</option><option>Female</option><option>Other</option>
               </select>
@@ -200,12 +223,12 @@ function StudentModal({ student, classes, onSave, onClose, saving }) {
             </Field>
           </div>
           <div className="form-row">
-            <Field label="Date of Birth (BS)">
-              <input className="form-input mono" placeholder="e.g. 2065-04-15"
+            <Field label="Date of Birth (BS)" error={errors.dobBs}>
+              <input className={`form-input mono ${errors.dobBs ? "error" : ""}`} placeholder="e.g. 2065-01-01"
                 value={form.dobBs} onChange={e => set("dobBs", e.target.value)} />
             </Field>
-            <Field label="Admission Year (BS)">
-              <input className="form-input mono" placeholder="e.g. 2079"
+            <Field label="Admission Year (BS)" error={errors.admissionYear}>
+              <input className={`form-input mono ${errors.admissionYear ? "error" : ""}`} placeholder="e.g. 2079"
                 value={form.admissionYear} onChange={e => set("admissionYear", e.target.value)} />
             </Field>
           </div>
@@ -418,8 +441,8 @@ export default function StudentsPage() {
                       <td style={{ fontWeight: 500, color: "var(--text)" }}>{s.name}</td>
                       <td><span className="tag tag-blue">{s.class}</span></td>
                       <td>
-                        <span className={`tag ${s.gender === "Female" ? "tag-purple" : s.gender === "Other" ? "tag-teal" : "tag-blue"}`}>
-                          {s.gender || "—"}
+                        <span className={`tag ${s.gender?.toLowerCase() === "female" ? "tag-purple" : s.gender?.toLowerCase() === "other" ? "tag-teal" : "tag-blue"}`}>
+                          {s.gender ? s.gender.charAt(0).toUpperCase() + s.gender.slice(1).toLowerCase() : "—"}
                         </span>
                       </td>
                       {!isParent && (
