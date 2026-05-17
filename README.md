@@ -103,73 +103,31 @@ Custom Bikram Sambat ↔ Gregorian conversion utility (JavaScript lookup table, 
 sikshyasanjal/
 ├── frontend/                            # React 18 application
 │   ├── public/
-│   │   └── index.html                   # HTML Template for React Application
+│   │   └── index.html                   # HTML Template
 │   ├── src/
-│   │   ├── components/                  # Reusable UI
-│   │   │   ├── Sidebar.jsx
-│   │   │   └── Topbar.jsx         
+│   │   ├── components/                  # Reusable UI (Sidebar, Topbar)
 │   │   ├── context/                     # AppContext.jsx — global auth & user state
-│   │   │   └── AppContext.jsx
 │   │   ├── data/                        # mockData.js
-│   │   │   └── mockData.js
-│   │   ├── pages/                       # Route-level page components
-│   │   │   ├── AttendancePage.jsx
-│   │   │   ├── CalendarPage.jsx
-│   │   │   ├── DashboardPage.jsx
-│   │   │   ├── FeesPage.jsx
-│   │   │   ├── GoogleCallbackPage.jsx
-│   │   │   ├── HomeworkPage.jsx
-│   │   │   ├── LoginPage.jsx
-│   │   │   ├── MessagesPage.jsx
-│   │   │   ├── NoticesPage.jsx
-│   │   │   ├── ResultsPage.jsx
-│   │   │   ├── RoutinePage.jsx
-│   │   │   ├── SettingsPage.jsx
-│   │   │   ├── StudentsPage.jsx
-│   │   │   └── TeachersPage.jsx
-│   │   ├── utils/                      # BS calendar helper, formatters
-│   │   │   └── calender.js    
+│   │   ├── pages/                       # Role-based page components
+│   │   │   ├── admin/                   # AdminDashboard, Settings, Teachers
+│   │   │   ├── Common/                  # Attendance, Calendar, Dashboard, Login, etc.
+│   │   │   ├── parent/                  # Fees, ParentDashboard
+│   │   │   └── teacher/                 # Homework, Students, TeacherDashboard
+│   │   ├── utils/                      # Bikram Sambat calendar helper
+│   │   │   └── calendar.js    
 │   │   ├── App.jsx                     # Routes + RoleGuard
-│   │   ├── index.css                   # Design tokens, glassmorphism, responsive rules
+│   │   ├── index.css                   # Global styles & glassmorphism
 │   │   └── index.js
-│   ├── .env
 │   └── package.json
 │
 ├── backend/                            # Node.js + Express API
-│   ├── middleware/
-│   │   ├── auth.js                     # JWT verification + role-based access control
-│   │   └── school.js                   # x-school-domain → ObjectId resolver
-│   ├── models/                         # Mongoose schemas
-│   │   ├── AcademicCalendar.js
-│   │   ├── Attendance.jsUser.js
-│   │   ├── ClassRoutine.js
-│   │   ├── ExamResult.js
-│   │   ├── FeeRecord.js
-│   │   ├── Homework.js
-│   │   ├── index.js
-│   │   ├── Message.js
-│   │   ├── Notice.js
-│   │   ├── School.js
-│   │   ├── Student.js
-│   │   └── User.js
-│   ├── routes/                         # Express route files per resource
-│   │   ├── attendance.js
-│   │   ├── auth.js
-│   │   ├── calendar.js
-│   │   ├── dashboard.js
-│   │   ├── fees.js
-│   │   ├── homework.js
-│   │   ├── messages.js
-│   │   ├── notices.js
-│   │   ├── results.js
-│   │   ├── routine.js
-│   │   ├── search.js
-│   │   ├── settings.js
-│   │   ├── students.js
-│   │   └── teachers.js
-│   ├── seeder.js                       # Demo school + sample data
-│   ├── server.js                       # Express app entry point
-│   ├── .env
+│   ├── controllers/                    # Logic per resource (attendance, auth, calendar, etc.)
+│   ├── middleware/                     # JWT auth & Multi-tenancy resolution
+│   ├── models/                         # Mongoose schemas (*Schema.js)
+│   ├── routes/                         # Express routes (*Routes.js)
+│   ├── utils/                          # Encryption & helper utilities
+│   ├── seeder.js                       # Demo data generator
+│   ├── server.js                       # Express entry point
 │   └── package.json
 │
 └── README.md

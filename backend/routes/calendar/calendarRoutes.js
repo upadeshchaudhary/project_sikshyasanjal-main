@@ -2,7 +2,7 @@ const router = require("express").Router();
 
 const { authMiddleware, requireTeacherOrAdmin, requireAdmin } = require("../../middleware/authMiddleware");
 
-const { getCalendarEvents, getUpcomingCalendarEvents, createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } = require("../../controllers/calender/calendarController");
+const { getCalendarEvents, getUpcomingCalendarEvents, createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } = require("../../controllers/calendar/calendarController");
 
 //calender routes
 
