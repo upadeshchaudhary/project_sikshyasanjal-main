@@ -4,7 +4,7 @@ import { useApp } from "../../context/AppContext";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { Plus, X, ChevronLeft, ChevronRight } from "lucide-react";
-import { BS_MONTH_NAMES, getDaysInBSMonth, getTodayBS } from "../../utils/calendar";
+import { BS_MONTH_NAMES, getDaysInBSMonth, getTodayBS, adToBs, bsToAd } from "../../utils/calendar";
 
 const TYPE_COLORS = {
   holiday:  { tag: "tag-red",    bg: "#fee2e2", text: "#dc2626" },
@@ -55,9 +55,28 @@ function AddModal({ year, month, onClose, onSaved }) {
     return () => document.removeEventListener("keydown", h);
   }, [onClose]);
 
-  const [form, setForm]     = useState({ title: "", startDateBs: `${year}-${String(month).padStart(2,"0")}-01`, startDate: "", type: "event", description: "", academicYear: `${year}-${String(year - 2056).padStart(2,"0")}`, isHoliday: false });
+  const [form, setForm]     = useState({ title: "", startDateBs: `${year}-${String(month).padStart(2,"0")}-01`, startDate: bsToAd(`${year}-${String(month).padStart(2,"0")}-01`), type: "event", description: "", academicYear: `${year}-${String(year - 2056).padStart(2,"0")}`, isHoliday: false });
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+
+  const set = (k, v) => {
+    let updates = { [k]: v };
+    if (k === "startDate") {
+      const bs = adToBs(v);
+      if (bs) updates.startDateBs = bs;
+    } else if (k === "startDateBs") {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+        const ad = bsToAd(v);
+        if (ad) updates.startDate = ad;
+      }
+    }
+    setForm(p => ({ ...p, ...updates }));
+    setErrors(p => {
+      const next = { ...p };
+      Object.keys(updates).forEach(key => delete next[key]);
+      return next;
+    });
+  };
 
   const validate = () => {
     const e = {};
@@ -88,32 +107,32 @@ function AddModal({ year, month, onClose, onSaved }) {
         <div className="modal-body">
           <Field label="Event Title *" error={errors.title}>
             <input className={`form-input ${errors.title ? "error" : ""}`} placeholder="e.g. Dashain Holiday"
-              value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} />
+              value={form.title} onChange={e => set("title", e.target.value)} />
           </Field>
           <div className="form-row">
             <Field label="Date (AD) *" error={errors.startDate}>
               <input type="date" className={`form-input ${errors.startDate ? "error" : ""}`}
-                value={form.startDate} onChange={e => setForm(p => ({ ...p, startDate: e.target.value }))} />
+                value={form.startDate} onChange={e => set("startDate", e.target.value)} />
             </Field>
             <Field label="Date (BS) *" error={errors.startDateBs}>
               <input className={`form-input mono ${errors.startDateBs ? "error" : ""}`} placeholder="YYYY-MM-DD"
-                value={form.startDateBs} onChange={e => setForm(p => ({ ...p, startDateBs: e.target.value }))} />
+                value={form.startDateBs} onChange={e => set("startDateBs", e.target.value)} />
             </Field>
           </div>
           <div className="form-row">
             <Field label="Type">
-              <select className="form-select" value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
+              <select className="form-select" value={form.type} onChange={e => set("type", e.target.value)}>
                 {Object.keys(TYPE_COLORS).map(t => <option key={t} value={t} style={{ textTransform: "capitalize" }}>{t}</option>)}
               </select>
             </Field>
             <Field label="Academic Year (BS)">
               <input className="form-input mono" placeholder="e.g. 2081-82"
-                value={form.academicYear} onChange={e => setForm(p => ({ ...p, academicYear: e.target.value }))} />
+                value={form.academicYear} onChange={e => set("academicYear", e.target.value)} />
             </Field>
           </div>
           <Field label="Description">
             <textarea className="form-input" rows={3} value={form.description}
-              onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
+              onChange={e => set("description", e.target.value)} />
           </Field>
         </div>
         <div className="modal-footer">

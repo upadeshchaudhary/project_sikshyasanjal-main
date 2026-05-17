@@ -3,6 +3,7 @@ import Topbar from "../../components/Topbar";
 import { useApp } from "../../context/AppContext";
 import axios from "axios";
 import toast from "react-hot-toast";
+import { adToBs, bsToAd } from "../../utils/calendar";
 import {
   Plus, Search, Pencil, Trash2, X,
   BookOpen, ChevronLeft, ChevronRight, Filter,
@@ -84,8 +85,28 @@ function HomeworkModal({ hw, classes, onSave, onClose, saving }) {
   }, [onClose]);
 
   const set = (k, v) => {
-    setForm(p => ({ ...p, [k]: v }));
-    if (errors[k]) setErrors(p => ({ ...p, [k]: "" }));
+    let updates = { [k]: v };
+
+    // Auto-sync AD and BS dates
+    if (k === "dueDate") {
+      const bs = adToBs(v);
+      if (bs) updates.dueDateBs = bs;
+    } else if (k === "dueDateBs") {
+      // Basic format check before converting: YYYY-MM-DD
+      if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+        const ad = bsToAd(v);
+        if (ad) updates.dueDate = ad;
+      }
+    }
+
+    setForm(p => ({ ...p, ...updates }));
+    
+    // Clear errors for fields being updated
+    setErrors(p => {
+      const next = { ...p };
+      Object.keys(updates).forEach(key => delete next[key]);
+      return next;
+    });
   };
 
   const validate = () => {

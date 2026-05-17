@@ -30,6 +30,9 @@ const BS_DAYS = {
   2088: [31,32,31,32,31,30,30,30,29,30,29,30],
 };
 
+const BS_EPOCH = { year: 2078, month: 1, day: 1 };
+const AD_EPOCH = new Date(2021, 3, 14); // April 14, 2021 (month is 0-indexed)
+
 /**
  * Returns the number of days in a given BS month
  * @param {number} year  - BS year (e.g. 2081)
@@ -48,8 +51,7 @@ export function getDaysInBSMonth(year, month) {
  */
 export function bsTotalDays(year, month, day) {
   let total = 0;
-  const startYear = 2078;
-  for (let y = startYear; y < year; y++) {
+  for (let y = BS_EPOCH.year; y < year; y++) {
     const row = BS_DAYS[y];
     if (row) total += row.reduce((s, d) => s + d, 0);
     else     total += 365;
@@ -59,6 +61,74 @@ export function bsTotalDays(year, month, day) {
   }
   total += day - 1;
   return total;
+}
+
+/**
+ * Convert BS date to AD date
+ * @param {string} bsDateString - "2081-04-15"
+ * @returns {string} "2024-07-30" (ISO format YYYY-MM-DD)
+ */
+export function bsToAd(bsDateString) {
+  if (!bsDateString) return "";
+  const parts = bsDateString.split("-").map(Number);
+  if (parts.length !== 3) return "";
+  const [y, m, d] = parts;
+  if (y < BS_EPOCH.year || y > 2088) return "";
+
+  const diffDays = bsTotalDays(y, m, d);
+  const adDate = new Date(AD_EPOCH);
+  adDate.setDate(adDate.getDate() + diffDays);
+
+  const adY = adDate.getFullYear();
+  const adM = String(adDate.getMonth() + 1).padStart(2, "0");
+  const adD = String(adDate.getDate()).padStart(2, "0");
+  return `${adY}-${adM}-${adD}`;
+}
+
+/**
+ * Convert AD date to BS date
+ * @param {string} adDateString - "2024-07-30"
+ * @returns {string} "2081-04-15"
+ */
+export function adToBs(adDateString) {
+  if (!adDateString) return "";
+  const adDate = new Date(adDateString);
+  if (isNaN(adDate.getTime())) return "";
+
+  // Difference in days from epoch
+  let diffDays = Math.floor((adDate - AD_EPOCH) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return ""; // before epoch
+
+  let y = BS_EPOCH.year;
+  let m = BS_EPOCH.month;
+  let d = BS_EPOCH.day;
+
+  // Subtract years
+  while (true) {
+    const row = BS_DAYS[y];
+    const daysInYear = row ? row.reduce((s, d) => s + d, 0) : 365;
+    if (diffDays >= daysInYear) {
+      diffDays -= daysInYear;
+      y++;
+    } else {
+      break;
+    }
+  }
+
+  // Subtract months
+  while (true) {
+    const daysInMonth = getDaysInBSMonth(y, m);
+    if (diffDays >= daysInMonth) {
+      diffDays -= daysInMonth;
+      m++;
+    } else {
+      break;
+    }
+  }
+
+  d += diffDays;
+
+  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
 /**

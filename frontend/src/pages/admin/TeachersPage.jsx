@@ -3,6 +3,7 @@ import Topbar from "../../components/Topbar";
 import { useApp } from "../../context/AppContext";
 import axios from "axios";
 import toast from "react-hot-toast";
+import { SUBJECTS } from "../../data/mockData";
 import { Plus, Pencil, Trash2, X, Eye, Users } from "lucide-react";
 
 function Skeleton({ height = 16, width = "100%", radius = 6 }) {
@@ -71,7 +72,7 @@ function Field({ label, error, children }) {
 function TeacherModal({ teacher, classes, onSave, onClose, saving }) {
   useEscKey(onClose);
   const isEdit = !!teacher;
-  const empty  = { name: "", subject: "", qualification: "", phone: "", email: "", assignedClasses: [] };
+  const empty  = { name: "", subject: SUBJECTS[0], qualification: "", phone: "", email: "", assignedClasses: [] };
   const [form,   setForm]   = useState(isEdit ? { ...empty, ...teacher } : empty);
   const [errors, setErrors] = useState({});
   const set = (k, v) => { setForm(p => ({ ...p, [k]: v })); if (errors[k]) setErrors(p => ({ ...p, [k]: "" })); };
@@ -87,7 +88,9 @@ function TeacherModal({ teacher, classes, onSave, onClose, saving }) {
     if (!form.subject?.trim()) e.subject = "Subject is required.";
     if (!form.email?.trim()) e.email = "Email is required.";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Enter a valid email.";
-    if (form.phone && !/^(98|97|96)\d{8}$/.test(form.phone.trim())) {
+    if (!form.phone?.trim()) {
+      e.phone = "Phone number is required.";
+    } else if (!/^(98|97|96)\d{8}$/.test(form.phone.trim())) {
       e.phone = "Enter a valid Nepali mobile number (98/97/96XXXXXXXX).";
     }
     setErrors(e);
@@ -108,7 +111,9 @@ function TeacherModal({ teacher, classes, onSave, onClose, saving }) {
                 value={form.name} onChange={e => set("name", e.target.value)} disabled={isEdit && !false /* admin can edit */} />
             </Field>
             <Field label="Subject *" error={errors.subject}>
-              <input className={`form-input ${errors.subject ? "error" : ""}`} placeholder="e.g. Mathematics" value={form.subject} onChange={e => set("subject", e.target.value)} />
+              <select className={`form-select ${errors.subject ? "error" : ""}`} value={form.subject} onChange={e => set("subject", e.target.value)}>
+                {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
             </Field>
           </div>
           <div className="form-row">
@@ -116,7 +121,7 @@ function TeacherModal({ teacher, classes, onSave, onClose, saving }) {
               <input type="email" className={`form-input ${errors.email ? "error" : ""}`} placeholder="teacher@school.edu.np"
                 value={form.email} onChange={e => set("email", e.target.value)} />
             </Field>
-            <Field label="Phone" error={errors.phone}>
+            <Field label="Phone *" error={errors.phone}>
               <input className={`form-input mono ${errors.phone ? "error" : ""}`} placeholder="98XXXXXXXX" maxLength={10}
                 value={form.phone} onChange={e => set("phone", e.target.value.replace(/\D/g, ""))} />
             </Field>

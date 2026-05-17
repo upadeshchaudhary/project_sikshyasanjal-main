@@ -3,6 +3,7 @@ import Topbar from "../../components/Topbar";
 import { useApp } from "../../context/AppContext";
 import axios from "axios";
 import toast from "react-hot-toast";
+import { adToBs, bsToAd } from "../../utils/calendar";
 import {
   Plus, Search, Pencil, Trash2, X,
   Eye, Users, ChevronLeft, ChevronRight,
@@ -128,7 +129,7 @@ function Field({ label, error, children }) {
 function StudentModal({ student, classes, onSave, onClose, saving }) {
   const isEdit = !!student;
 
-  const empty = { name: "", rollNo: "", class: classes[0] || "", gender: "Male", parentName: "", parentPhone: "", address: "", dobBs: "", admissionYear: "" };
+  const empty = { name: "", rollNo: "", class: classes[0] || "", gender: "Male", parentName: "", parentPhone: "", address: "", dob: "", dobBs: "", admissionYear: "" };
   const [form, setForm]     = useState(isEdit ? { ...empty, ...student } : empty);
   const [errors, setErrors] = useState({});
 
@@ -139,8 +140,24 @@ function StudentModal({ student, classes, onSave, onClose, saving }) {
   }, [onClose]);
 
   const set = (k, v) => {
-    setForm(p => ({ ...p, [k]: v }));
-    if (errors[k]) setErrors(p => ({ ...p, [k]: "" }));
+    let updates = { [k]: v };
+
+    if (k === "dob") {
+      const bs = adToBs(v);
+      if (bs) updates.dobBs = bs;
+    } else if (k === "dobBs") {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+        const ad = bsToAd(v);
+        if (ad) updates.dob = ad;
+      }
+    }
+
+    setForm(p => ({ ...p, ...updates }));
+    setErrors(p => {
+      const next = { ...p };
+      Object.keys(updates).forEach(key => delete next[key]);
+      return next;
+    });
   };
 
   const validate = () => {
@@ -153,13 +170,21 @@ function StudentModal({ student, classes, onSave, onClose, saving }) {
     if (!["Male", "Female", "Other"].includes(form.gender)) {
       e.gender = "Please select a valid gender.";
     }
-    if (form.parentPhone && !/^(98|97|96)\d{8}$/.test(form.parentPhone.trim()))
-                               e.parentPhone = "Enter a valid Nepali mobile number (98/97/96XXXXXXXX).";
+    if (!form.parentName?.trim()) e.parentName = "Parent/Guardian name is required.";
+    if (!form.parentPhone?.trim()) {
+      e.parentPhone = "Parent phone number is required.";
+    } else if (!/^(98|97|96)\d{8}$/.test(form.parentPhone.trim())) {
+      e.phone = "Enter a valid Nepali mobile number (98/97/96XXXXXXXX).";
+    }
+    if (!form.address?.trim()) e.address = "Address is required.";
+    if (!form.dob)             e.dob    = "AD date of birth is required.";
+    if (!form.dobBs?.trim()) {
+      e.dobBs = "Date of birth is required.";
+    } else if (!/^\d{4}-\d{2}-\d{2}$/.test(form.dobBs.trim())) {
+      e.dobBs = "Date of birth must be in YYYY-MM-DD format.";
+    }
     if (form.admissionYear && !/^\d{4}$/.test(form.admissionYear.trim())) {
       e.admissionYear = "Admission year must be a 4-digit BS year.";
-    }
-    if (form.dobBs && !/^\d{4}-\d{2}-\d{2}$/.test(form.dobBs.trim())) {
-      e.dobBs = "Date of birth must be in YYYY-MM-DD format.";
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -173,6 +198,7 @@ function StudentModal({ student, classes, onSave, onClose, saving }) {
       class: form.class.trim(),
       parentName: form.parentName?.trim() || "",
       address: form.address?.trim() || "",
+      dob: form.dob,
       dobBs: form.dobBs?.trim() || "",
       admissionYear: form.admissionYear?.trim() || "",
       gender: form.gender.toLowerCase(),
@@ -210,18 +236,18 @@ function StudentModal({ student, classes, onSave, onClose, saving }) {
                 {classes.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </Field>
-            <Field label="Gender" error={errors.gender}>
+            <Field label="Gender *" error={errors.gender}>
               <select className="form-select" value={form.gender} onChange={e => set("gender", e.target.value)}>
                 <option>Male</option><option>Female</option><option>Other</option>
               </select>
             </Field>
           </div>
           <div className="form-row">
-            <Field label="Parent / Guardian Name">
-              <input className="form-input" placeholder="e.g. Rajesh Sharma"
+            <Field label="Parent / Guardian Name *" error={errors.parentName}>
+              <input className={`form-input ${errors.parentName ? "error" : ""}`} placeholder="e.g. Rajesh Sharma"
                 value={form.parentName} onChange={e => set("parentName", e.target.value)} />
             </Field>
-            <Field label="Parent Phone" error={errors.parentPhone}>
+            <Field label="Parent Phone *" error={errors.parentPhone}>
               <input className={`form-input mono ${errors.parentPhone ? "error" : ""}`}
                 placeholder="98XXXXXXXX" maxLength={10}
                 value={form.parentPhone}
@@ -229,19 +255,25 @@ function StudentModal({ student, classes, onSave, onClose, saving }) {
             </Field>
           </div>
           <div className="form-row">
-            <Field label="Date of Birth (BS)" error={errors.dobBs}>
+            <Field label="Date of Birth (AD) *" error={errors.dob}>
+              <input type="date" className={`form-input ${errors.dob ? "error" : ""}`}
+                value={form.dob} onChange={e => set("dob", e.target.value)} />
+            </Field>
+            <Field label="Date of Birth (BS) *" error={errors.dobBs}>
               <input className={`form-input mono ${errors.dobBs ? "error" : ""}`} placeholder="e.g. 2065-01-01"
                 value={form.dobBs} onChange={e => set("dobBs", e.target.value)} />
             </Field>
-            <Field label="Admission Year (BS)" error={errors.admissionYear}>
+          </div>
+          <div className="form-row">
+            <Field label="Batch / Admission Year (BS)" error={errors.admissionYear}>
               <input className={`form-input mono ${errors.admissionYear ? "error" : ""}`} placeholder="e.g. 2079"
                 value={form.admissionYear} onChange={e => set("admissionYear", e.target.value)} />
             </Field>
+            <Field label="Address *" error={errors.address}>
+              <input className={`form-input ${errors.address ? "error" : ""}`} placeholder="e.g. Dharan-5, Sunsari"
+                value={form.address} onChange={e => set("address", e.target.value)} />
+            </Field>
           </div>
-          <Field label="Address">
-            <input className="form-input" placeholder="e.g. Dharan-5, Sunsari"
-              value={form.address} onChange={e => set("address", e.target.value)} />
-          </Field>
         </div>
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose} disabled={saving}>Cancel</button>

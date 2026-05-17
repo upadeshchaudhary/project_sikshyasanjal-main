@@ -3,6 +3,7 @@ import Topbar from "../../components/Topbar";
 import { useApp } from "../../context/AppContext";
 import axios from "axios";
 import toast from "react-hot-toast";
+import { adToBs, bsToAd } from "../../utils/calendar";
 import {
   CheckCircle, X, Plus, CreditCard,
   ChevronLeft, ChevronRight, AlertCircle,
@@ -72,10 +73,30 @@ function PaymentModal({ fee, onClose, onSaved }) {
   const [form,   setForm]   = useState({
     paidAmount:    String(balance),
     paymentMethod: "cash",
-    paidDateBs:    "",
+    paidDate:      new Date().toISOString().split("T")[0],
+    paidDateBs:    adToBs(new Date().toISOString().split("T")[0]),
   });
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+
+  const set = (k, v) => {
+    let updates = { [k]: v };
+    if (k === "paidDate") {
+      const bs = adToBs(v);
+      if (bs) updates.paidDateBs = bs;
+    } else if (k === "paidDateBs") {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+        const ad = bsToAd(v);
+        if (ad) updates.paidDate = ad;
+      }
+    }
+    setForm(p => ({ ...p, ...updates }));
+    setErrors(p => {
+      const next = { ...p };
+      Object.keys(updates).forEach(key => delete next[key]);
+      return next;
+    });
+  };
 
   const validate = () => {
     const e = {};
@@ -83,6 +104,7 @@ function PaymentModal({ fee, onClose, onSaved }) {
     if (!form.paidAmount)          e.paidAmount = "Amount is required.";
     else if (isNaN(amt) || amt <= 0) e.paidAmount = "Enter a valid positive amount.";
     else if (amt > balance)         e.paidAmount = `Cannot exceed balance of NPR ${balance.toLocaleString()}.`;
+    if (!form.paidDate)            e.paidDate   = "Payment date (AD) is required.";
     if (!form.paidDateBs?.trim())  e.paidDateBs = "Payment date (BS) is required.";
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -100,7 +122,7 @@ function PaymentModal({ fee, onClose, onSaved }) {
         paidAmount:    newPaid,
         paymentMethod: form.paymentMethod,
         paidDateBs:    form.paidDateBs.trim(),
-        paidDate:      new Date().toISOString(),
+        paidDate:      form.paidDate,
         status,
       });
       toast.success(`Payment of NPR ${paid.toLocaleString()} recorded.`);
@@ -142,26 +164,36 @@ function PaymentModal({ fee, onClose, onSaved }) {
                 className={`form-input mono ${errors.paidAmount ? "error" : ""}`}
                 placeholder={balance.toString()}
                 value={form.paidAmount}
-                onChange={e => setForm(p => ({ ...p, paidAmount: e.target.value }))}
+                onChange={e => set("paidAmount", e.target.value)}
               />
             </Field>
             <Field label="Payment Method">
               <select className="form-select"
                 value={form.paymentMethod}
-                onChange={e => setForm(p => ({ ...p, paymentMethod: e.target.value }))}>
+                onChange={e => set("paymentMethod", e.target.value)}>
                 {PAY_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
               </select>
             </Field>
           </div>
 
-          <Field label="Payment Date (BS) *" error={errors.paidDateBs}>
-            <input
-              className={`form-input mono ${errors.paidDateBs ? "error" : ""}`}
-              placeholder="e.g. 2081-05-20"
-              value={form.paidDateBs}
-              onChange={e => setForm(p => ({ ...p, paidDateBs: e.target.value }))}
-            />
-          </Field>
+          <div className="form-row">
+            <Field label="Payment Date (AD) *" error={errors.paidDate}>
+              <input
+                type="date"
+                className={`form-input ${errors.paidDate ? "error" : ""}`}
+                value={form.paidDate}
+                onChange={e => set("paidDate", e.target.value)}
+              />
+            </Field>
+            <Field label="Payment Date (BS) *" error={errors.paidDateBs}>
+              <input
+                className={`form-input mono ${errors.paidDateBs ? "error" : ""}`}
+                placeholder="e.g. 2081-05-20"
+                value={form.paidDateBs}
+                onChange={e => set("paidDateBs", e.target.value)}
+              />
+            </Field>
+          </div>
         </div>
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose} disabled={saving}>Cancel</button>
@@ -201,8 +233,27 @@ function AddFeeModal({ classes, onClose, onSaved }) {
   }, [selClass]);
 
   const set = (k, v) => {
-    setForm(p => ({ ...p, [k]: v }));
-    if (errors[k]) setErrors(p => ({ ...p, [k]: "" }));
+    let updates = { [k]: v };
+
+    // Auto-sync AD and BS dates
+    if (k === "dueDate") {
+      const bs = adToBs(v);
+      if (bs) updates.dueDateBs = bs;
+    } else if (k === "dueDateBs") {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+        const ad = bsToAd(v);
+        if (ad) updates.dueDate = ad;
+      }
+    }
+
+    setForm(p => ({ ...p, ...updates }));
+    
+    // Clear errors for fields being updated
+    setErrors(p => {
+      const next = { ...p };
+      Object.keys(updates).forEach(key => delete next[key]);
+      return next;
+    });
   };
 
   const validate = () => {
