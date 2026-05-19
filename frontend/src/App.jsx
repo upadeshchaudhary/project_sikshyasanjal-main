@@ -4,7 +4,9 @@ import { Toaster } from "react-hot-toast";
 import { useApp } from "./context/AppContext";
 import GoogleCallbackPage from "./pages/Common/GoogleCallbackPage";
 import Sidebar from "./components/Sidebar";
-import LoginPage from "./pages/Common/LoginPage";
+import AdminLogin from "./pages/admin/AdminLogin";
+import TeacherLogin from "./pages/teacher/TeacherLogin";
+import ParentLogin from "./pages/parent/ParentLogin";
 import DashboardPage from "./pages/Common/DashboardPage";
 import StudentsPage from "./pages/teacher/StudentsPage";
 import TeachersPage from "./pages/admin/TeachersPage";
@@ -48,7 +50,10 @@ function AppShell() {
   if (!currentUser) {
     return (
       <Routes>
-        <Route path="/" element={<LoginPage />} />
+        <Route path="/admin" element={<AdminLogin />} />
+        <Route path="/teacher" element={<TeacherLogin />} />
+        <Route path="/parent" element={<ParentLogin />} />
+        <Route path="/" element={<ParentLogin />} />
         <Route path="/auth/callback" element={<GoogleCallbackPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
