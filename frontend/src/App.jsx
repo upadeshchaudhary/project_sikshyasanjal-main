@@ -4,6 +4,7 @@ import { Toaster } from "react-hot-toast";
 import { useApp } from "./context/AppContext";
 import GoogleCallbackPage from "./pages/Common/GoogleCallbackPage";
 import Sidebar from "./components/Sidebar";
+import RoleSelection from "./pages/Common/RoleSelection";
 import AdminLogin from "./pages/admin/AdminLogin";
 import TeacherLogin from "./pages/teacher/TeacherLogin";
 import ParentLogin from "./pages/parent/ParentLogin";
@@ -53,7 +54,7 @@ function AppShell() {
         <Route path="/admin" element={<AdminLogin />} />
         <Route path="/teacher" element={<TeacherLogin />} />
         <Route path="/parent" element={<ParentLogin />} />
-        <Route path="/" element={<ParentLogin />} />
+        <Route path="/" element={<RoleSelection />} />
         <Route path="/auth/callback" element={<GoogleCallbackPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
