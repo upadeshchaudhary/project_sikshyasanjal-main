@@ -201,6 +201,7 @@ export const DEFAULT_SETTINGS = {
   language:           "English",
   dateFormat:         "BS",
   theme:              "light",
+  sidebarCollapsed:   false,
   showPhone:          false,
   twoFactorOTP:       true,
   sessionTimeout:     "30",

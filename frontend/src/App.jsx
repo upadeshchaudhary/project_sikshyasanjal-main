@@ -61,8 +61,10 @@ function AppShell() {
   }
 
   // Logged in → show full app shell with role-guarded routes
+  const { settings } = useApp();
+  
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${settings.sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       <Sidebar />
       <div className="main-area">
         <Routes>

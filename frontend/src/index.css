@@ -146,9 +146,18 @@ h4, h5, h6 { font-family: 'Sora', sans-serif; font-weight: 600; }
   overflow-y: auto;
   overflow-x: hidden;
   border-right: 1px solid rgba(255,255,255,0.06);
-  position: relative;   /* needed for ::before on nav-item */
+  position: relative;
   z-index: 10;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* ── Collapsed state: icon-only rail (desktop only) ─────────── */
+.app-shell.sidebar-collapsed .sidebar {
+  width: 64px;
+  /* keep border-right visible */
+}
+
+/* Remove the old width:0 / opacity:0 rules — collapse is now 64px */
 
 .sidebar-logo {
   padding: 18px 16px 14px;
@@ -185,7 +194,7 @@ h4, h5, h6 { font-family: 'Sora', sans-serif; font-weight: 600; }
   transition: background 0.15s, color 0.15s;
   margin-bottom: 1px;
   text-decoration: none;
-  position: relative;   /* for ::before active bar */
+  position: relative;
 }
 
 .nav-item:hover {
@@ -219,6 +228,24 @@ h4, h5, h6 { font-family: 'Sora', sans-serif; font-weight: 600; }
   flex-shrink: 0;
 }
 
+/* ── Collapse toggle button — desktop only ───────────────────── */
+/* On mobile the hamburger handles open/close; hide the collapse btn */
+.sidebar-collapse-btn {
+  display: flex; /* visible on desktop */
+}
+
+/* ── Mobile overrides ────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* On mobile: sidebar is always full-width overlay; ignore collapsed state */
+  .app-shell.sidebar-collapsed .sidebar {
+    width: var(--sidebar-w);
+  }
+
+  /* Hide desktop collapse toggle on mobile */
+  .sidebar-collapse-btn {
+    display: none !important;
+  }
+}
 /* ── Avatar ────────────────────────────────────────────────── */
 .avatar {
   width: 32px;

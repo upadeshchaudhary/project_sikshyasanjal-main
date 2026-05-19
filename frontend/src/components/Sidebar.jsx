@@ -1,3 +1,4 @@
+// ─── Sidebar.jsx ─────────────────────────────────────────────────────────────
 import { useState, useEffect } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useApp } from "../context/AppContext";
@@ -6,7 +7,8 @@ import {
   LayoutDashboard, Users, GraduationCap, BookOpen,
   ClipboardList, BarChart2, Calendar, CalendarDays,
   Bell, CreditCard, MessageSquare, LogOut, School,
-  Settings, Menu, X, ChevronRight,
+  Settings, Menu, X, ChevronLeft, ChevronRight,
+  Sun, Moon,
 } from "lucide-react";
 
 // ─── Navigation config per role ───────────────────────────────────────────────
@@ -76,21 +78,22 @@ const ROLE_LABELS = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function Sidebar() {
-  const { currentUser, school, logout, unreadCount } = useApp();
+  const { currentUser, school, logout, unreadCount, settings, updateSetting } = useApp();
   const navigate  = useNavigate();
   const location  = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [logoutConfirm, setLogoutConfirm] = useState(false);
 
-  // ── Nav config — never fall back to adminNav for unknown roles ──────────────
-  const nav = navByRole[currentUser?.role] || [];
+  const nav        = navByRole[currentUser?.role] || [];
+  const isCollapsed = settings.sidebarCollapsed;
+  const isDark      = settings.theme === "dark";
 
   // ── Close mobile sidebar on route change ───────────────────────────────────
   useEffect(() => {
     setMobileOpen(false);
   }, [location.pathname]);
 
-  // ── Close mobile sidebar on Escape key ────────────────────────────────────
+  // ── Close mobile sidebar on Escape ────────────────────────────────────────
   useEffect(() => {
     const handler = (e) => { if (e.key === "Escape") setMobileOpen(false); };
     document.addEventListener("keydown", handler);
@@ -105,7 +108,6 @@ export default function Sidebar() {
       navigate("/");
     } else {
       setLogoutConfirm(true);
-      // Auto-cancel after 3 seconds if user doesn't confirm
       setTimeout(() => setLogoutConfirm(false), 3000);
     }
   }
@@ -125,7 +127,7 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* ── Mobile hamburger button (shown only on mobile) ─────────────────── */}
+      {/* ── Mobile hamburger ──────────────────────────────────────────────── */}
       <button
         className="mobile-menu-btn"
         onClick={() => setMobileOpen(true)}
@@ -160,9 +162,10 @@ export default function Sidebar() {
           <X size={16} />
         </button>
 
-        {/* ── Header: school identity ─────────────────────────────────────── */}
+        {/* ── Header: school identity + collapse toggle ───────────────────── */}
         <div className="sidebar-logo">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {/* School icon — always visible */}
             <div style={{
               width: 36, height: 36,
               background: "rgba(255,255,255,0.15)",
@@ -172,28 +175,43 @@ export default function Sidebar() {
             }}>
               <School size={18} color="#fff" />
             </div>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{
-                color: "#fff", fontWeight: 700, fontSize: 14,
-                lineHeight: 1.3, letterSpacing: "-0.01em",
-                overflow: "hidden", textOverflow: "ellipsis",
-                display: "-webkit-box", WebkitLineClamp: 2,
-                WebkitBoxOrient: "vertical",
-                maxWidth: 148,
-              }}>
-                {schoolName}
-              </div>
-              {school?.domain && (
+
+            {/* School name + domain — hidden when collapsed */}
+            {!isCollapsed && (
+              <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{
-                  fontSize: 10, color: "rgba(255,255,255,0.4)",
-                  marginTop: 2, fontFamily: "'JetBrains Mono', monospace",
-                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  color: "#fff", fontWeight: 700, fontSize: 14,
+                  lineHeight: 1.3, letterSpacing: "-0.01em",
+                  overflow: "hidden", textOverflow: "ellipsis",
+                  display: "-webkit-box", WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
                   maxWidth: 148,
                 }}>
-                  {school.domain}
+                  {schoolName}
                 </div>
-              )}
-            </div>
+                {school?.domain && (
+                  <div style={{
+                    fontSize: 10, color: "rgba(255,255,255,0.4)",
+                    marginTop: 2, fontFamily: "'JetBrains Mono', monospace",
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    maxWidth: 148,
+                  }}>
+                    {school.domain}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Collapse toggle (desktop only, hidden on mobile via CSS) ── */}
+            <button
+              onClick={() => updateSetting("sidebarCollapsed", !isCollapsed)}
+              className="sidebar-collapse-btn"
+              title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              style={collapseToggleBtnStyle(isCollapsed)}
+            >
+              {isCollapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
+            </button>
           </div>
         </div>
 
@@ -201,22 +219,30 @@ export default function Sidebar() {
         <nav className="sidebar-nav" aria-label="Site navigation">
           {nav.map((section) => (
             <div key={section.label} style={{ marginBottom: 4 }}>
-              <div className="sidebar-section">{section.label}</div>
+              {/* Section label — hidden when collapsed */}
+              {!isCollapsed && (
+                <div className="sidebar-section">{section.label}</div>
+              )}
+
               {section.items.map((item) => (
                 <NavLink
                   key={item.path}
                   to={item.path}
                   className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+                  style={isCollapsed ? collapsedNavItemStyle : {}}
                   aria-current={location.pathname === item.path ? "page" : undefined}
+                  title={isCollapsed ? item.label : undefined}
                 >
                   <item.icon size={15} aria-hidden="true" />
-                  <span style={{ flex: 1 }}>{item.label}</span>
-
-                  {/* Unread message badge */}
-                  {item.badge && unreadCount > 0 && (
-                    <span style={badgeStyle}>
-                      {unreadCount > 99 ? "99+" : unreadCount}
-                    </span>
+                  {!isCollapsed && (
+                    <>
+                      <span style={{ flex: 1 }}>{item.label}</span>
+                      {item.badge && unreadCount > 0 && (
+                        <span style={badgeStyle}>
+                          {unreadCount > 99 ? "99+" : unreadCount}
+                        </span>
+                      )}
+                    </>
                   )}
                 </NavLink>
               ))}
@@ -226,20 +252,49 @@ export default function Sidebar() {
 
         {/* ── Footer ────────────────────────────────────────────────────────── */}
         <div className="sidebar-footer">
+
+          {/* ── Theme toggle ──────────────────────────────────────────────── */}
+          <div style={themeToggleWrapStyle(isCollapsed)}>
+            <button
+              onClick={() => updateSetting("theme", "light")}
+              style={themeSegBtnStyle(!isDark)}
+              title="Light mode"
+              aria-label="Light mode"
+              aria-pressed={!isDark}
+            >
+              <Sun size={13} />
+              {!isCollapsed && <span style={{ fontSize: 11, fontWeight: 600 }}>Light</span>}
+            </button>
+            <button
+              onClick={() => updateSetting("theme", "dark")}
+              style={themeSegBtnStyle(isDark)}
+              title="Dark mode"
+              aria-label="Dark mode"
+              aria-pressed={isDark}
+            >
+              <Moon size={13} />
+              {!isCollapsed && <span style={{ fontSize: 11, fontWeight: 600 }}>Dark</span>}
+            </button>
+          </div>
+
           {/* Settings — admin only */}
           {currentUser?.role === "admin" && (
             <NavLink
               to="/settings"
               className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
-              style={{ marginBottom: 6 }}
+              style={isCollapsed ? { ...collapsedNavItemStyle, marginBottom: 6 } : { marginBottom: 6 }}
+              title={isCollapsed ? "Settings" : undefined}
             >
               <Settings size={15} aria-hidden="true" />
-              <span style={{ flex: 1 }}>Settings</span>
+              {!isCollapsed && <span style={{ flex: 1 }}>Settings</span>}
             </NavLink>
           )}
 
           {/* User chip */}
-          <div className="user-chip">
+          <div
+            className="user-chip"
+            style={isCollapsed ? { justifyContent: "center", gap: 0, flexDirection: "column", alignItems: "center", padding: "8px 0" } : {}}
+          >
             {/* Avatar */}
             <div
               className="avatar"
@@ -249,28 +304,33 @@ export default function Sidebar() {
               {initials}
             </div>
 
-            {/* Name + role */}
-            <div className="user-chip-info" style={{ flex: 1, minWidth: 0 }}>
-              <div className="user-chip-name" style={{
-                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-              }}>
-                {currentUser?.name || "User"}
+            {/* Name + role — hidden when collapsed */}
+            {!isCollapsed && (
+              <div className="user-chip-info" style={{ flex: 1, minWidth: 0 }}>
+                <div className="user-chip-name" style={{
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                }}>
+                  {currentUser?.name || "User"}
+                </div>
+                <div className="user-chip-role">
+                  {ROLE_LABELS[currentUser?.role] || currentUser?.role}
+                </div>
               </div>
-              <div className="user-chip-role">
-                {ROLE_LABELS[currentUser?.role] || currentUser?.role}
-              </div>
-            </div>
+            )}
 
-            {/* Logout button — SEPARATE from the user info, correct UX */}
+            {/* Logout button */}
             <button
               onClick={handleLogoutClick}
-              style={logoutBtnStyle(logoutConfirm)}
+              style={{
+                ...logoutBtnStyle(logoutConfirm),
+                ...(isCollapsed ? { marginTop: 6 } : {}),
+              }}
               title={logoutConfirm ? "Click again to confirm sign out" : "Sign out"}
               aria-label={logoutConfirm ? "Confirm sign out" : "Sign out"}
             >
               {logoutConfirm ? (
                 <span style={{ fontSize: 9, fontWeight: 700, color: "#EF4444", whiteSpace: "nowrap" }}>
-                  Confirm?
+                  {isCollapsed ? "✓?" : "Confirm?"}
                 </span>
               ) : (
                 <LogOut size={13} />
@@ -283,9 +343,10 @@ export default function Sidebar() {
   );
 }
 
-// ── Inline styles for dynamic/JS-only elements ─────────────────────────────
+// ── Inline styles ──────────────────────────────────────────────────────────────
+
 const mobileMenuBtnStyle = {
-  display: "none", // shown via CSS media query: .mobile-menu-btn { display: flex; }
+  display: "none",
   position: "fixed",
   top: 12, left: 12,
   zIndex: 300,
@@ -309,7 +370,7 @@ const backdropStyle = {
 };
 
 const closeBtnStyle = {
-  display: "none", // shown via CSS media query
+  display: "none",
   position: "absolute",
   top: 14, right: 14,
   width: 28, height: 28,
@@ -320,6 +381,26 @@ const closeBtnStyle = {
   cursor: "pointer",
   alignItems: "center",
   justifyContent: "center",
+};
+
+// Collapse toggle — desktop only (hidden on mobile via .sidebar-collapse-btn CSS rule)
+const collapseToggleBtnStyle = (isCollapsed) => ({
+  marginLeft: isCollapsed ? 0 : "auto",
+  background: "rgba(255,255,255,0.08)",
+  border: "1px solid rgba(255,255,255,0.12)",
+  borderRadius: 7,
+  color: "rgba(255,255,255,0.45)",
+  cursor: "pointer",
+  width: 26, height: 26,
+  display: "flex", alignItems: "center", justifyContent: "center",
+  flexShrink: 0,
+  transition: "background 0.15s, color 0.15s",
+});
+
+// Nav item when sidebar is collapsed: center the icon
+const collapsedNavItemStyle = {
+  justifyContent: "center",
+  padding: "9px",
 };
 
 const badgeStyle = {
@@ -337,6 +418,34 @@ const badgeStyle = {
   fontFamily: "'JetBrains Mono', monospace",
   flexShrink: 0,
 };
+
+// ── Theme toggle styles ────────────────────────────────────────────────────────
+
+const themeToggleWrapStyle = (isCollapsed) => ({
+  display: "flex",
+  flexDirection: isCollapsed ? "column" : "row",
+  background: "rgba(255,255,255,0.07)",
+  borderRadius: 10,
+  padding: 3,
+  marginBottom: 8,
+  gap: 2,
+});
+
+const themeSegBtnStyle = (isActive) => ({
+  flex: 1,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 5,
+  padding: "6px 8px",
+  borderRadius: 7,
+  border: "none",
+  cursor: "pointer",
+  background: isActive ? "rgba(255,255,255,0.15)" : "transparent",
+  color: isActive ? "#fff" : "rgba(255,255,255,0.35)",
+  fontWeight: isActive ? 600 : 400,
+  transition: "background 0.2s, color 0.2s",
+});
 
 const logoutBtnStyle = (isConfirming) => ({
   background: isConfirming ? "rgba(239,68,68,0.15)" : "transparent",
