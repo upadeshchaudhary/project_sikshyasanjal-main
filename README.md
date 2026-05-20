@@ -345,7 +345,7 @@ This guarantees that a query from School A **can never return data belonging to 
 Client Request
      │
      ▼
-x-school-domain: "greenfield"
+x-school-domain: "saraswati"
      │
      ▼
 school.js middleware → resolves to ObjectId("6634abc...")

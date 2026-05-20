@@ -19,7 +19,6 @@ const schoolSchema = new mongoose.Schema(
       lowercase: true,
       trim:      true,
       match:     [/^[a-z0-9-]{2,50}$/, "Domain must be 2-50 lowercase letters, numbers, or hyphens"],
-      index:     true, // queried on every request via school middleware
     },
 
     // ── Contact info ──────────────────────────────────────────────────────────
@@ -81,7 +80,7 @@ const schoolSchema = new mongoose.Schema(
 );
 
 // ── Indexes ───────────────────────────────────────────────────────────────────
-schoolSchema.index({ domain: 1 }, { unique: true });
+// schoolSchema.index({ domain: 1 }, { unique: true }); -- moved to field definition for better error handling
 
 // ── Static: find by slug (used everywhere) ────────────────────────────────────
 schoolSchema.statics.findBySlug = function (slug) {
