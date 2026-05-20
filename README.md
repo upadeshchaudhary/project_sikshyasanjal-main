@@ -113,21 +113,21 @@ sikshyasanjal/
 │   │   │   ├── Common/                  # Attendance, Calendar, Dashboard, Login, etc.
 │   │   │   ├── parent/                  # Fees, ParentDashboard
 │   │   │   └── teacher/                 # Homework, Students, TeacherDashboard
-│   │   ├── utils/                      # Bikram Sambat calendar helper
+│   │   ├── utils/                       # Bikram Sambat calendar helper
 │   │   │   └── calendar.js    
-│   │   ├── App.jsx                     # Routes + RoleGuard
-│   │   ├── index.css                   # Global styles & glassmorphism
+│   │   ├── App.jsx                      # Routes + RoleGuard
+│   │   ├── index.css                    # Global styles & glassmorphism
 │   │   └── index.js
 │   └── package.json
 │
-├── backend/                            # Node.js + Express API
-│   ├── controllers/                    # Logic per resource (attendance, auth, calendar, etc.)
-│   ├── middleware/                     # JWT auth & Multi-tenancy resolution
-│   ├── models/                         # Mongoose schemas (*Schema.js)
-│   ├── routes/                         # Express routes (*Routes.js)
-│   ├── utils/                          # Encryption & helper utilities
-│   ├── seeder.js                       # Demo data generator
-│   ├── server.js                       # Express entry point
+├── backend/                             # Node.js + Express API
+│   ├── controllers/                     # Logic per resource (attendance, auth, calendar, etc.)
+│   ├── middleware/                      # JWT auth & Multi-tenancy resolution
+│   ├── models/                          # Mongoose schemas (*Schema.js)
+│   ├── routes/                          # Express routes (*Routes.js)
+│   ├── utils/                           # Encryption & helper utilities
+│   ├── seeder.js                        # Demo data generator
+│   ├── server.js                        # Express entry point
 │   └── package.json
 │
 └── README.md

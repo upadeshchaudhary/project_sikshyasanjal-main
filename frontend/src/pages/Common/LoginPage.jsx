@@ -1,6 +1,6 @@
 // LoginPage.jsx - Multi-step login flow with domain verification, role selection, and OTP support for parents.
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useApp } from "../../context/AppContext";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -60,12 +60,13 @@ const isValidDomain = (v) => /^[a-z0-9-]{2,50}$/.test(v.trim().toLowerCase());
 // ─── Root ─────────────────────────────────────────────────────────────────────
 export default function LoginPage() {
   const navigate        = useNavigate();
+  const [searchParams]  = useSearchParams();
   const { login, offline } = useApp();
 
   const [step,          setStep]         = useState("domain"); // "domain" | "role" | "form"
   const [schoolSlug,    setSchoolSlug]   = useState("");
   const [schoolInfo,    setSchoolInfo]   = useState(null);    // { name, slug, _id }
-  const [selectedRole,  setSelectedRole] = useState(null);
+  const [selectedRole,  setSelectedRole] = useState(searchParams.get("role") || null);
   const [email,         setEmail]        = useState("");
   const [password,      setPassword]     = useState("");
   const [phone,         setPhone]        = useState("");
@@ -112,7 +113,13 @@ export default function LoginPage() {
     try {
       const { data } = await axios.get(`/auth/school/${slug}`);
       setSchoolInfo(data.school);
-      setStep("role");
+      
+      // If role was pre-selected via query param, skip step 2
+      if (selectedRole && ROLES.some(r => r.key === selectedRole)) {
+        setStep("form");
+      } else {
+        setStep("role");
+      }
     } catch (err) {
       const msg = err.response?.data?.message || "School not found. Check your domain.";
       if (!err.response) {

@@ -56,7 +56,7 @@ function AppShell() {
         <Route path="/teacher" element={<TeacherLogin />} />
         <Route path="/parent" element={<ParentLogin />} /> */}
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/" element={<RoleSelection />} />
+        <Route path="/" element={<LoginPage />} />
         <Route path="/auth/callback" element={<GoogleCallbackPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
