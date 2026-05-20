@@ -21,6 +21,7 @@ import RoutinePage from "./pages/Common/RoutinePage";
 import CalendarPage from "./pages/Common/CalendarPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import "./index.css";
+import LoginPage from "./pages/Common/LoginPage";
 
 // ─── Role-based route guard ───────────────────────────────────────────────────
 // allowedRoles: array of roles that can access this route
@@ -51,9 +52,10 @@ function AppShell() {
   if (!currentUser) {
     return (
       <Routes>
-        <Route path="/admin" element={<AdminLogin />} />
+        {/* <Route path="/admin" element={<AdminLogin />} />
         <Route path="/teacher" element={<TeacherLogin />} />
-        <Route path="/parent" element={<ParentLogin />} />
+        <Route path="/parent" element={<ParentLogin />} /> */}
+        <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={<RoleSelection />} />
         <Route path="/auth/callback" element={<GoogleCallbackPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
