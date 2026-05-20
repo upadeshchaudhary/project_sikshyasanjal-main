@@ -11,7 +11,7 @@ const bcrypt   = require("bcryptjs");
 
 // ── Models ───────────────────────────────────────────────────────────────────
 const School           = require("./models/SchoolSchema");
-const User             = require("./models/User");
+const User             = require("./models/UserSchema");
 const Student          = require("./models/StudentSchema");
 const Homework         = require("./models/HomeworkSchema");
 const Notice           = require("./models/NoticeSchema");
