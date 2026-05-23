@@ -6,8 +6,6 @@ const helmet     = require("helmet");
 const morgan     = require("morgan");
 const rateLimit  = require("express-rate-limit");
 require("dotenv").config();
-console.log("MONGO_URI:", process.env.MONGO_URI);
-
 // ── Validate required environment variables on startup ──────────────────────
 const REQUIRED_ENV = [
   "MONGO_URI",
@@ -116,17 +114,18 @@ app.use("/api/auth/parent/login",   loginLimiter);
 // ── School resolution middleware ───────────────────────────────────────────────
 // Applied to all /api/* routes EXCEPT auth routes (which bootstrap the session)
 const schoolMiddleware = require("./middleware/schoolMiddleware");
+const adminseeder = require("./adminSeeder");
 
 // FIXED: explicit path list instead of fragile string replacement
 const UNSCOPED_PREFIXES = ["/auth", "/health"];
 
-app.use("/api", (req, res, next) => {
-  const isUnscoped = UNSCOPED_PREFIXES.some((prefix) =>
-    req.path === prefix || req.path.startsWith(prefix + "/")
-  );
-  if (isUnscoped) return next();
-  return schoolMiddleware(req, res, next);
-});
+// app.use("/api", (req, res, next) => {
+//   const isUnscoped = UNSCOPED_PREFIXES.some((prefix) =>
+//     req.path === prefix || req.path.startsWith(prefix + "/")
+//   );
+//   if (isUnscoped) return next();
+//   return schoolMiddleware(req, res, next);
+// });
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use("/api", require("./routes/auth/authRoutes"));
@@ -155,9 +154,9 @@ app.get("/api/health", (_req, res) =>
 );
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
-app.use((_req, res) => {
-  res.status(404).json({ success: false, message: "Route not found" });
-});
+// app.use((_req, res) => {
+//   res.status(404).json({ success: false, message: "Route not found" });
+// });
 
 // ── Global error handler ──────────────────────────────────────────────────────
 // Must have exactly 4 parameters to be recognised as error middleware by Express
@@ -186,6 +185,8 @@ app.use((err, req, res, next) => {
       : err.message,
   });
 });
+
+  adminseeder();
 
 // ── Database connection + server start ───────────────────────────────────────
 mongoose

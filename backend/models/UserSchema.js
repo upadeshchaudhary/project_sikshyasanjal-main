@@ -25,9 +25,9 @@ const userSchema = new mongoose.Schema(
 
     // ── Multi-tenant school reference ─────────────────────────────────────────
     school: {
-      type:     mongoose.Schema.Types.ObjectId,
-      ref:      "School",
-      required: true,
+      // type:     mongoose.Schema.Types.ObjectId,
+      // ref:      "School",
+      type:     String, 
       index:    true,
     },
 
@@ -119,9 +119,10 @@ const userSchema = new mongoose.Schema(
     },
 
     // ── Account status ────────────────────────────────────────────────────────
-    isDisabled: {
-      type:    Boolean,
-      default: false,
+    isActive: {
+      type:    String,
+      enum:   ["active", "inactive"],
+      default: "inactive",
       index:   true,
     },
 
@@ -183,7 +184,7 @@ userSchema.methods.verifyOtp = async function (otpPlain) {
 
 // ── Static: find active users by school and role ─────────────────────────────
 userSchema.statics.findBySchoolAndRole = function (schoolId, role, opts = {}) {
-  return this.find({ school: schoolId, role, isDisabled: false, ...opts });
+  return this.find({ school: schoolId, role, isActive: "inactive", ...opts });
 };
 
 // ── toJSON: strip sensitive fields from serialization ────────────────────────

@@ -1,5 +1,5 @@
 // backend/routes/auth/authRoutes.js
-const { parentSendOtp, verifySchoolDomain, verifyOtp, adminTeacherLogin, parentsLogin, googleAuth, googleCallback, getMe, logout } = require("../../controllers/auth/authController");
+const { parentSendOtp, verifyOtp, adminTeacherLogin, parentsLogin, googleAuth, googleCallback, getMe, logout } = require("../../controllers/auth/authController");
 
 const { authMiddleware, requireTeacherOrAdmin, requireAdmin } = require("../../middleware/authMiddleware");
 
@@ -10,7 +10,7 @@ const router = require("express").Router();
 
 router.route("/auth/parent/send-otp").post(parentSendOtp);
 router.route("/auth/login").post(adminTeacherLogin);
-router.route("/auth/school/:slug").get(verifySchoolDomain);
+// router.route("/auth/school/:slug").get(verifySchoolDomain);
 router.route("/auth/parent/verify-otp").post(verifyOtp);
 router.route("/auth/parent/login").post(parentsLogin);
 router.route("/auth/google").get(googleAuth);

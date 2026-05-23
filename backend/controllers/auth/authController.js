@@ -62,93 +62,95 @@ const userShape = (user) => {
 // GET /api/auth/school/:slug — Step 1 of login: verify school domain exists
 // Called by LoginPage before showing the role selector
 // ════════════════════════════════════════════════════════════════════════════════
-exports.verifySchoolDomain = async (req, res) => {
-  try {
-    const slug   = req.params.slug.toLowerCase().trim();
-    const school = await School.findOne({ $or: [{ domain: slug }, { slug: slug }] }).lean();
+// exports.verifySchoolDomain = async (req, res) => {
+//   try {
+//     const slug   = req.params.slug.toLowerCase().trim();
+//     const school = await School.findOne({ $or: [{ domain: slug }, { slug: slug }] }).lean();
 
-    if (!school) {
-      return res.status(404).json({
-        success: false,
-        message: "No school found with this domain. Check the domain and try again.",
-      });
-    }
+//     if (!school) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "No school found with this domain. Check the domain and try again.",
+//       });
+//     }
 
-    res.json({
-      success: true,
-      school:  schoolShape(school),
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: "Server error.  Please try again." });
-  }
-};
+//     res.json({
+//       success: true,
+//       school:  schoolShape(school),
+//     });
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: "Server error.  Please try again." });
+//   }
+// };
 
 // ════════════════════════════════════════════════════════════════════════════════
 // POST /api/auth/login — Admin / Teacher email + password login
 // ════════════════════════════════════════════════════════════════════════════════
 exports.adminTeacherLogin = async (req, res) => {
   try {
-    const { email, password, role } = req.body;
-    const schoolDomain = (req.headers["x-school-domain"] || "").toLowerCase().trim();
+    const { email, password } = req.body;
 
     // Input validation
-    if (!email || !password || !schoolDomain) {
+    if (!email || !password ) {
       return res.status(400).json({
         success: false,
-        message: "Email, password, and school domain are required.",
+        message: "Email and password are required.",
       });
     }
 
-    if (!["admin", "teacher"].includes(role)) {
+    // validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid role for this login method.",
+        message: "Enter a valid email address.",
       });
     }
 
-    // Resolve school
-    const school = await School.findOne({ domain: schoolDomain });
-    if (!school) {
-      return res.status(404).json({ success: false, message: "School not found." });
-    }
-
-    // Find user — scoped to this school and the correct role
-    const user = await User.findOne({
-      email:  email.toLowerCase().trim(),
-      school: school._id,
-      role,
-    }).select("+passwordHash"); // Explicitly include passwordHash for verification
-
-    // Use the same error message for "user not found" and "wrong password"
-    // to prevent user enumeration attacks
-    const INVALID_CREDS = { success: false, message: "Incorrect email or password." };
-
-    if (!user || !user.passwordHash) return res.status(401).json(INVALID_CREDS);
-
-    const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) return res.status(401).json(INVALID_CREDS);
-
-    // Check if account is active
-    if (user.isDisabled) {
-      return res.status(403).json({
+    // validate password length
+    if (password.length < 6) {
+      return res.status(400).json({
         success: false,
-        message: "Your account has been disabled. Contact the school administrator.",
+        message: "Password must be at least 6 characters long.",
       });
     }
 
-    // Update last login
-    await User.findByIdAndUpdate(user._id, { lastLogin: new Date() });
+    // check user exist or not 
+    const userExist = await User.findOne({ email: email  })
+    .select("+passwordHash")
+    .lean(); 
+      
+    if (!userExist) {
+      return res.status(401).json({
+        success: false,        message: "No account found with this email.",
+      });
+    }
+    // check password is correct or not
+    const isPasswordValid = await bcrypt.compare(password, userExist.passwordHash);
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: "Incorrect password. Please try again.",
+      });
+    }
+ 
+    // Fire-and-forget lastLogin — don't block the response
+    User.findByIdAndUpdate(userExist._id, { lastLogin: new Date() }).catch(() => {});
 
-    res.json({
+    const token = jwt.sign({ userId: userExist._id, role: userExist.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES });
+
+    res.status(200).json({
       success: true,
-      token:   signToken(user, school._id),
-      user:    userShape(user),
-      school:  schoolShape(school),
-    });
+      message: "Login successful",
+      token: token,
+      user:   userShape(userExist),
+   });
   } catch (err) {
     res.status(500).json({ success: false, message: "Login failed. Please try again." });
   }
 };
+
+
 
 // ════════════════════════════════════════════════════════════════════════════════
 // POST /api/auth/parent/send-otp — Send OTP to parent's Nepali mobile number
@@ -170,17 +172,7 @@ exports.parentSendOtp = async (req, res) => {
 
     const school = await School.findOne({ domain: schoolDomain });
     if (!school) return res.status(404).json({ success: false, message: "School not found." });
-
-  
-    // const user = await User.findOne({ phone, school: school._id, role: "parent" }).select("+otpHash +otpExpiry"); // Include OTP fields for potential cleanup
-    // if (!user) {
-    //   // Don't reveal whether the number is registered — prevents enumeration
-    //   return res.status(200).json({
-    //     success: true,
-    //     message: "If this number is registered, an OTP has been sent.",
-    //   });
-    // }
-
+    
      const user = await User.findOne({ phone, school: school._id, role: "parent" }).select("+otpHash +otpExpiry"); // Include OTP fields for potential cleanup
     if (!user) {
       res.status(400).json({
@@ -203,26 +195,6 @@ exports.parentSendOtp = async (req, res) => {
     // Sparrow SMS delivery is disabled for demo/local runs.
     // The OTP remains available in backend logs and can still be verified.
     console.log(`DEV OTP for +977-${phone}: ${otpPlain}`);
-
-    // const smsText = `Your SikshyaSanjal OTP is: ${otpPlain}. Valid for 5 minutes. Do not share this code.`;
-    // try {
-    //   await axios.post(
-    //     "https://api.sparrowsms.com/v2/sms/",
-    //     {
-    //       token:   process.env.SPARROW_SMS_TOKEN,
-    //       from:    process.env.SPARROW_SMS_FROM || "SikshyaSanjal",
-    //       to:      `+977${phone}`,
-    //       text:    smsText,
-    //     },
-    //     { timeout: 8000 }
-    //   );
-    // } catch (smsError) {
-    //   console.error("SMS sending failed:", smsError.message);
-    //   return res.status(502).json({
-    //     success: false,
-    //     message: "SMS service unavailable. Please try again or use password login.",
-    //   });
-    // }
 
     res.json({
       success: true,

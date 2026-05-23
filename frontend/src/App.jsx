@@ -1,4 +1,4 @@
-// App.jsx - Main application component with routing, role-based access control, and auth-aware shell.
+// App.jsx
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { useApp } from "./context/AppContext";
@@ -21,11 +21,7 @@ import RoutinePage from "./pages/Common/RoutinePage";
 import CalendarPage from "./pages/Common/CalendarPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import "./index.css";
-import LoginPage from "./pages/Common/LoginPage";
 
-// ─── Role-based route guard ───────────────────────────────────────────────────
-// allowedRoles: array of roles that can access this route
-// If user's role is not in allowedRoles → redirect to /dashboard
 function RoleGuard({ allowedRoles, children }) {
   const { currentUser } = useApp();
   if (!allowedRoles.includes(currentUser?.role)) {
@@ -34,12 +30,10 @@ function RoleGuard({ allowedRoles, children }) {
   return children;
 }
 
-// ─── Auth-aware shell ─────────────────────────────────────────────────────────
 function AppShell() {
+  // ✅ FIX: removed the stray <Route> JSX that was floating outside any return()
   const { currentUser, authLoading } = useApp();
 
-  // While auth context is initialising (reading token from localStorage + validating),
-  // render nothing — prevents the login-flash flicker bug.
   if (authLoading) {
     return (
       <div className="auth-loading-screen">
@@ -48,43 +42,39 @@ function AppShell() {
     );
   }
 
-  // Not logged in → only the login route is accessible
   if (!currentUser) {
     return (
       <Routes>
-        {/* <Route path="/admin" element={<AdminLogin />} />
-        <Route path="/teacher" element={<TeacherLogin />} />
-        <Route path="/parent" element={<ParentLogin />} /> */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/" element={<LoginPage />} />
-        <Route path="/auth/callback" element={<GoogleCallbackPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/admin"          element={<AdminLogin />} />
+        <Route path="/teacher"        element={<TeacherLogin />} />
+        <Route path="/parent"         element={<ParentLogin />} />
+        <Route path="/"               element={<RoleSelection />} />
+        <Route path="/auth/callback"  element={<GoogleCallbackPage />} />
+        <Route path="*"               element={<Navigate to="/" replace />} />
       </Routes>
     );
   }
 
-  // Logged in → show full app shell with role-guarded routes
   const { settings } = useApp();
-  
+
   return (
     <div className={`app-shell ${settings.sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       <Sidebar />
       <div className="main-area">
         <Routes>
-          {/* Default redirect */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/"              element={<Navigate to="/dashboard" replace />} />
 
-          {/* ── All roles ─────────────────────────────────── */}
-          <Route path="/dashboard"  element={<DashboardPage />} />
+          {/* ── All roles ──────────────────────────────────── */}
+          <Route path="/dashboard"     element={<DashboardPage />} />
           <Route path="/auth/callback" element={<GoogleCallbackPage />} />
-          <Route path="/homework"   element={<HomeworkPage />} />
-          <Route path="/notices"    element={<NoticesPage />} />
-          <Route path="/messages"   element={<MessagesPage />} />
-          <Route path="/routine"    element={<RoutinePage />} />
-          <Route path="/calendar"   element={<CalendarPage />} />
-          <Route path="/results"    element={<ResultsPage />} />
+          <Route path="/homework"      element={<HomeworkPage />} />
+          <Route path="/notices"       element={<NoticesPage />} />
+          <Route path="/messages"      element={<MessagesPage />} />
+          <Route path="/routine"       element={<RoutinePage />} />
+          <Route path="/calendar"      element={<CalendarPage />} />
+          <Route path="/results"       element={<ResultsPage />} />
 
-          {/* ── Admin + Teacher only ──────────────────────── */}
+          {/* ── Admin + Teacher only ───────────────────────── */}
           <Route
             path="/students"
             element={
@@ -102,7 +92,7 @@ function AppShell() {
             }
           />
 
-          {/* ── Admin only ───────────────────────────────── */}
+          {/* ── Admin only ─────────────────────────────────── */}
           <Route
             path="/teachers"
             element={
@@ -128,7 +118,6 @@ function AppShell() {
             }
           />
 
-          {/* Catch-all */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </div>
@@ -136,24 +125,23 @@ function AppShell() {
   );
 }
 
-// ─── Root ─────────────────────────────────────────────────────────────────────
 export default function App() {
   return (
     <>
       <AppShell />
       <Toaster
-          position="top-right"
-          toastOptions={{
-            style: {
-              fontFamily: "'Sora', sans-serif",
-              fontSize: "13px",
-              borderRadius: "10px",
-              border: "1px solid var(--border)",
-            },
-            success: { iconTheme: { primary: "var(--green)", secondary: "#fff" } },
-            error:   { iconTheme: { primary: "var(--red)",   secondary: "#fff" } },
-          }}
-        />
+        position="top-right"
+        toastOptions={{
+          style: {
+            fontFamily: "'Sora', sans-serif",
+            fontSize: "13px",
+            borderRadius: "10px",
+            border: "1px solid var(--border)",
+          },
+          success: { iconTheme: { primary: "var(--green)", secondary: "#fff" } },
+          error:   { iconTheme: { primary: "var(--red)",   secondary: "#fff" } },
+        }}
+      />
     </>
   );
 }

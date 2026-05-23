@@ -60,20 +60,26 @@ const CATEGORY_TAG = {
 
 const PRIORITY_CLASS = { high: "tag-red", medium: "tag-amber", low: "tag-green" };
 
-export {
-  getGreeting,
-  Skeleton,
-  StatCard,
-  EmptyState,
-  CATEGORY_TAG,
-  PRIORITY_CLASS,
-};
+export { getGreeting, Skeleton, StatCard, EmptyState, CATEGORY_TAG, PRIORITY_CLASS };
 
 export default function DashboardPage() {
-  const { currentUser } = useApp();
+  const { currentUser: ctxUser } = useApp();
+
+  // ✅ FIX: declare with `let`, use context first then localStorage as fallback
+  let currentUser = ctxUser;
+  if (!currentUser) {
+    try {
+      const raw = localStorage.getItem("user");
+      currentUser = raw ? JSON.parse(raw) : null;
+    } catch {
+      currentUser = null;
+    }
+  }
 
   if (!currentUser) return null;
-  if (currentUser.role === "teacher") return <TeacherDashboard user={currentUser} />;
-  if (currentUser.role === "parent")  return <ParentDashboard user={currentUser} />;
+
+  const role = currentUser.role;
+  if (role === "teacher") return <TeacherDashboard user={currentUser} />;
+  if (role === "parent")  return <ParentDashboard  user={currentUser} />;
   return <AdminDashboard user={currentUser} />;
 }
