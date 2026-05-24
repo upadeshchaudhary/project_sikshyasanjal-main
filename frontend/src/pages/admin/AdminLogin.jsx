@@ -26,8 +26,7 @@ export default function AdminLogin() {
 
     setLoading(true);
     try {
-      const res = await axios.post(
-        "/auth/login",
+      const res = await axios.post("/auth/login",
         { email: userData.email, password: userData.password },
         { headers: { "Content-Type": "application/json", Accept: "application/json" } }
       );
