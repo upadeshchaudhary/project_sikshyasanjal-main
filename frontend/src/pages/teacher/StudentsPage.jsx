@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Topbar from "../../components/Topbar";
 import { useApp } from "../../context/AppContext";
 import axios from "axios";
@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import { adToBs, bsToAd } from "../../utils/calendar";
 import {
   Plus, Search, Pencil, Trash2, X,
-  Eye, Users, ChevronLeft, ChevronRight,
+  Eye, Users, ChevronLeft, ChevronRight, CalendarDays
 } from "lucide-react";
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
@@ -128,9 +128,17 @@ function Field({ label, error, children }) {
 // ── Add / Edit modal ──────────────────────────────────────────────────────────
 function StudentModal({ student, classes, onSave, onClose, saving }) {
   const isEdit = !!student;
+  const datePickerRef = useRef(null);
+
+  // Normalize gender to Title Case — DB stores lowercase ("male"), select needs "Male"
+  const normalizeGender = (g) => {
+    if (!g) return "Male";
+    const l = g.toLowerCase();
+    return l.charAt(0).toUpperCase() + l.slice(1);
+  };
 
   const empty = { name: "", rollNo: "", class: classes[0] || "", gender: "Male", parentName: "", parentPhone: "", address: "", dob: "", dobBs: "", admissionYear: "" };
-  const [form, setForm]     = useState(isEdit ? { ...empty, ...student } : empty);
+  const [form, setForm]     = useState(isEdit ? { ...empty, ...student, gender: normalizeGender(student?.gender) } : empty);
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
@@ -254,9 +262,35 @@ function StudentModal({ student, classes, onSave, onClose, saving }) {
             </Field>
           </div>
           <div className="form-row">
-            <Field label="Date of Birth (BS) *" error={errors.dobBs}>
-              <input className={`form-input mono ${errors.dobBs ? "error" : ""}`} placeholder="e.g. 2065-01-01"
-                value={form.dobBs} onChange={e => set("dobBs", e.target.value)} />
+          <Field label="Date of Birth (BS) *" error={errors.dobBs}>
+              <div style={{ display: "flex", gap: 6, alignItems: "stretch" }}>
+                <input
+                  className={`form-input mono ${errors.dobBs ? "error" : ""}`}
+                  placeholder="e.g. 2065-01-01"
+                  value={form.dobBs}
+                  onChange={e => set("dobBs", e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                {/* Hidden AD date picker — triggers via the calendar icon button */}
+                <div style={{ position: "relative", display: "flex" }}>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    title="Pick date (AD) — auto-converts to BS"
+                    style={{ padding: "0 10px" }}
+                    onClick={() => datePickerRef.current?.showPicker()}
+                  >
+                    <CalendarDays size={14} />
+                  </button>
+                  <input
+                    ref={datePickerRef}
+                    type="date"
+                    style={{ position: "absolute", opacity: 0, width: 1, height: 1, pointerEvents: "none", top: 0, left: 0 }}
+                    value={form.dob || ""}
+                    onChange={e => set("dob", e.target.value)}
+                  />
+                </div>
+              </div>
             </Field>
             <Field label="Batch / Admission Year (BS)" error={errors.admissionYear}>
               <input className={`form-input mono ${errors.admissionYear ? "error" : ""}`} placeholder="e.g. 2079"
