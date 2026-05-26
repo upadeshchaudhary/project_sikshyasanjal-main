@@ -48,6 +48,7 @@ export const AppProvider = ({ children }) => {
   const [settings,      setSettings]      = useState(DEFAULT_SETTINGS);
   const [authLoading,   setAuthLoading]   = useState(true);
   const [offline,       setOffline]       = useState(false);
+  const [mobileOpen,    setMobileOpen]    = useState(false);
 
   const restoringRef   = useRef(true);
   const currentUserRef = useRef(null);
@@ -199,6 +200,7 @@ export const AppProvider = ({ children }) => {
       notifications, markNotifRead, markAllRead,
       clearNotif, addNotification, unreadCount,
       settings, updateSetting,
+      mobileOpen, setMobileOpen,
     }}>
       {children}
     </AppContext.Provider>

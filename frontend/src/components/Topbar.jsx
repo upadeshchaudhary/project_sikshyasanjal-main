@@ -7,7 +7,7 @@ import {
   Search, Bell, Settings, X, CheckCheck,
   BookOpen, MessageSquare, FileText, CreditCard,
   BarChart2, Calendar, Users, AlertCircle, GraduationCap,
-  Moon, Sun, Loader2,
+  Moon, Sun, Loader2, Menu,
 } from "lucide-react";
 
 // ─── Route → page title map (auto breadcrumb fallback) ────────────────────────
@@ -246,7 +246,7 @@ function NotifDropdown({ onClose }) {
 
 // ─── Main Topbar ───────────────────────────────────────────────────────────────
 export default function Topbar({ title }) {
-  const { currentUser, school, unreadCount, settings, updateSetting } = useApp();
+  const { currentUser, school, unreadCount, settings, updateSetting, setMobileOpen } = useApp();
   const navigate  = useNavigate();
   const location  = useLocation();
 
@@ -326,6 +326,19 @@ export default function Topbar({ title }) {
 
   return (
     <div className="topbar">
+
+      {/* ── Sidebar Toggle (Desktop/Mobile) ────────────────────────────── */}
+      <button
+        className="icon-btn"
+        onClick={() => {
+          if (window.innerWidth <= 768) setMobileOpen(true);
+          else updateSetting("sidebarCollapsed", !settings.sidebarCollapsed);
+        }}
+        title={settings.sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        style={{ marginRight: 4, flexShrink: 0 }}
+      >
+        <Menu size={18} />
+      </button>
 
       {/* ── Page title + breadcrumb ─────────────────────────────────────── */}
       <div style={{ marginRight: "auto", minWidth: 0 }}>

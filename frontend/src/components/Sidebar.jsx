@@ -7,8 +7,7 @@ import {
   LayoutDashboard, Users, GraduationCap, BookOpen,
   ClipboardList, BarChart2, Calendar, CalendarDays,
   Bell, CreditCard, MessageSquare, LogOut, School,
-  Settings, Menu, X, ChevronLeft, ChevronRight,
-  Sun, Moon,
+  Settings, Menu, X,
 } from "lucide-react";
 
 // ─── Navigation config per role ───────────────────────────────────────────────
@@ -78,10 +77,9 @@ const ROLE_LABELS = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function Sidebar() {
-  const { currentUser, school, logout, unreadCount, settings, updateSetting } = useApp();
+  const { currentUser, school, logout, unreadCount, settings, updateSetting, mobileOpen, setMobileOpen } = useApp();
   const navigate  = useNavigate();
   const location  = useLocation();
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [logoutConfirm, setLogoutConfirm] = useState(false);
 
   const nav        = navByRole[currentUser?.role] || [];
@@ -127,16 +125,6 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* ── Mobile hamburger ──────────────────────────────────────────────── */}
-      <button
-        className="mobile-menu-btn"
-        onClick={() => setMobileOpen(true)}
-        aria-label="Open navigation menu"
-        style={mobileMenuBtnStyle}
-      >
-        <Menu size={20} />
-      </button>
-
       {/* ── Mobile backdrop ───────────────────────────────────────────────── */}
       {mobileOpen && (
         <div
@@ -191,17 +179,6 @@ export default function Sidebar() {
                 </div>
               </div>
             )}
-
-            {/* ── Collapse toggle (desktop only, hidden on mobile via CSS) ── */}
-            <button
-              onClick={() => updateSetting("sidebarCollapsed", !isCollapsed)}
-              className="sidebar-collapse-btn"
-              title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              style={collapseToggleBtnStyle(isCollapsed)}
-            >
-              {isCollapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
-            </button>
           </div>
         </div>
 
@@ -312,22 +289,6 @@ export default function Sidebar() {
 
 // ── Inline styles ──────────────────────────────────────────────────────────────
 
-const mobileMenuBtnStyle = {
-  display: "none",
-  position: "fixed",
-  top: 12, left: 12,
-  zIndex: 300,
-  width: 40, height: 40,
-  borderRadius: 10,
-  background: "var(--blue, #1E3FF2)",
-  border: "none",
-  color: "#fff",
-  cursor: "pointer",
-  alignItems: "center",
-  justifyContent: "center",
-  boxShadow: "0 2px 12px rgba(30,63,242,0.35)",
-};
-
 const backdropStyle = {
   position: "fixed",
   inset: 0,
@@ -350,20 +311,6 @@ const closeBtnStyle = {
   justifyContent: "center",
 };
 
-// Collapse toggle — desktop only (hidden on mobile via .sidebar-collapse-btn CSS rule)
-const collapseToggleBtnStyle = (isCollapsed) => ({
-  marginLeft: isCollapsed ? 0 : "auto",
-  background: "rgba(255,255,255,0.08)",
-  border: "1px solid rgba(255,255,255,0.12)",
-  borderRadius: 7,
-  color: "rgba(255,255,255,0.45)",
-  cursor: "pointer",
-  width: 26, height: 26,
-  display: "flex", alignItems: "center", justifyContent: "center",
-  flexShrink: 0,
-  transition: "background 0.15s, color 0.15s",
-});
-
 // Nav item when sidebar is collapsed: center the icon
 const collapsedNavItemStyle = {
   justifyContent: "center",
@@ -385,34 +332,6 @@ const badgeStyle = {
   fontFamily: "'JetBrains Mono', monospace",
   flexShrink: 0,
 };
-
-// ── Theme toggle styles ────────────────────────────────────────────────────────
-
-const themeToggleWrapStyle = (isCollapsed) => ({
-  display: "flex",
-  flexDirection: isCollapsed ? "column" : "row",
-  background: "rgba(255,255,255,0.07)",
-  borderRadius: 10,
-  padding: 3,
-  marginBottom: 8,
-  gap: 2,
-});
-
-const themeSegBtnStyle = (isActive) => ({
-  flex: 1,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 5,
-  padding: "6px 8px",
-  borderRadius: 7,
-  border: "none",
-  cursor: "pointer",
-  background: isActive ? "rgba(255,255,255,0.15)" : "transparent",
-  color: isActive ? "#fff" : "rgba(255,255,255,0.35)",
-  fontWeight: isActive ? 600 : 400,
-  transition: "background 0.2s, color 0.2s",
-});
 
 const logoutBtnStyle = (isConfirming) => ({
   background: isConfirming ? "rgba(239,68,68,0.15)" : "transparent",

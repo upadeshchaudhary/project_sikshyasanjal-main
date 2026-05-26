@@ -333,7 +333,7 @@ h4, h5, h6 { font-family: 'Sora', sans-serif; font-weight: 600; }
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  padding: 0 20px 0 24px;
+  padding: 0 16px;
   gap: 12px;
   position: sticky;
   top: 0;
@@ -858,8 +858,8 @@ h4, h5, h6 { font-family: 'Sora', sans-serif; font-weight: 600; }
   .app-shell { display: block; height: 100vh; overflow: hidden; }
   .main-area { height: 100vh; }
 
-  /* Offset for hamburger button */
-  .topbar { padding-left: 60px; }
+  /* Offset for hamburger button is no longer needed since it's inside Topbar */
+  .topbar { padding-left: 16px; }
 
   /* Tighter page padding */
   .page-content { padding: 16px; }
