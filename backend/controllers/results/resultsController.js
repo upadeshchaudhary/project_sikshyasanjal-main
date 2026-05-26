@@ -95,6 +95,16 @@ exports.getResultById = async (req, res) => {
   }
 };
 
+const EXAM_TYPES = [
+  "First Terminal Examination",
+  "Second Terminal Examination",
+  "Third Term Examination",
+  "Final Examination",
+  "Weekly Test",
+  "Monthly Test",
+  "Class Test",
+];
+
 // POST /api/results
 exports.uploadResult = async (req, res) => {
   try {
@@ -102,7 +112,9 @@ exports.uploadResult = async (req, res) => {
     const { student, examName, examYear, class: cls, subjects } = req.body;
 
     if (!student || !isValidId(student)) return res.status(400).json({ success: false, message: "Valid student ID is required." });
-    if (!examName?.trim()) return res.status(400).json({ success: false, message: "Exam name is required." });
+    if (!examName?.trim() || !EXAM_TYPES.includes(examName.trim())) {
+      return res.status(400).json({ success: false, message: "Invalid or missing exam type." });
+    }
     if (!examYear?.trim()) return res.status(400).json({ success: false, message: "Exam year (BS) is required." });
     if (!cls?.trim())      return res.status(400).json({ success: false, message: "Class is required." });
     if (!Array.isArray(subjects) || subjects.length === 0) return res.status(400).json({ success: false, message: "At least one subject is required." });
@@ -113,7 +125,6 @@ exports.uploadResult = async (req, res) => {
       if (user?.assignedClasses?.length > 0 && !user.assignedClasses.includes(cls.trim())) {
         return res.status(403).json({ success: false, message: "You can only upload results for your assigned classes." });
       }
-      // Ensure teacher only uploads their assigned subject
       const unauthorizedSubjects = subjects.filter(s => s.subject?.trim().toLowerCase() !== user.subject?.toLowerCase());
       if (unauthorizedSubjects.length > 0) {
         return res.status(403).json({ success: false, message: `You are only authorized to upload marks for your subject: ${user.subject}.` });
@@ -123,14 +134,21 @@ exports.uploadResult = async (req, res) => {
     const subjectErrors = [];
     for (let i = 0; i < subjects.length; i++) {
       const s = subjects[i];
+      const obtained = Number(s.marksObtained);
+      const full     = Number(s.fullMarks);
+
       if (!s.subject?.trim())            subjectErrors.push(`Subject ${i + 1}: name is required.`);
       if (s.marksObtained == null)       subjectErrors.push(`Subject ${i + 1}: marks obtained is required.`);
       if (s.fullMarks == null)           subjectErrors.push(`Subject ${i + 1}: full marks is required.`);
-      if (s.fullMarks <= 0)              subjectErrors.push(`Subject ${i + 1}: full marks must be greater than 0.`);
-      if (s.marksObtained < 0)           subjectErrors.push(`Subject ${i + 1}: marks cannot be negative.`);
-      if (s.marksObtained > s.fullMarks) subjectErrors.push(`Subject ${i + 1}: marks obtained cannot exceed full marks.`);
+      if (full <= 0 || full > 100)       subjectErrors.push(`Subject ${i + 1}: full marks must be between 1 and 100.`);
+      if (obtained < 0)                  subjectErrors.push(`Subject ${i + 1}: marks cannot be negative.`);
+      if (obtained > full)               subjectErrors.push(`Subject ${i + 1}: obtained marks (${obtained}) cannot exceed full marks (${full}).`);
+      
+      if (examName.trim() === "Final Examination" && full !== 100) {
+        subjectErrors.push(`Subject ${i + 1}: full marks must be 100 for Final Examination.`);
+      }
     }
-    if (subjectErrors.length > 0) return res.status(400).json({ success: false, message: "Subject validation failed.", errors: subjectErrors });
+    if (subjectErrors.length > 0) return res.status(400).json({ success: false, message: "Validation failed.", errors: subjectErrors });
 
     const studentDoc = await Student.findOne({ _id: student, class: cls.trim() }).lean();
     if (!studentDoc) return res.status(404).json({ success: false, message: "Student not found in this class." });
@@ -142,7 +160,6 @@ exports.uploadResult = async (req, res) => {
         return res.status(403).json({ success: false, message: "Cannot modify a published result. Contact administrator." });
       }
 
-      // Update or Add subjects
       subjects.forEach(newSub => {
         const idx = result.subjects.findIndex(s => s.subject.toLowerCase() === newSub.subject.trim().toLowerCase());
         if (idx !== -1) {
@@ -158,7 +175,6 @@ exports.uploadResult = async (req, res) => {
       });
       await result.save();
     } else {
-      // Create new record
       const enrichedSubjects = subjects.map(s => ({
         subject:       s.subject.trim(),
         marksObtained: Number(s.marksObtained),
@@ -201,17 +217,33 @@ exports.updateResult = async (req, res) => {
     const { subjects } = req.body;
     if (!Array.isArray(subjects) || subjects.length === 0) return res.status(400).json({ success: false, message: "Subjects array is required for update." });
 
-    if (role === "teacher") {
-      // Teachers can ONLY update their own subject
-      const teacherSubject = user.subject?.toLowerCase();
+    // ── Shared Validation ───────────────────────────────────────────────────
+    const subjectErrors = [];
+    for (let i = 0; i < subjects.length; i++) {
+      const s = subjects[i];
+      const obtained = Number(s.marksObtained);
+      const full     = Number(s.fullMarks);
+
+      if (!s.subject?.trim())      subjectErrors.push(`Subject ${i + 1}: name is required.`);
+      if (s.marksObtained == null) subjectErrors.push(`Subject ${i + 1}: marks obtained is required.`);
+      if (s.fullMarks == null)     subjectErrors.push(`Subject ${i + 1}: full marks is required.`);
+      if (full <= 0 || full > 100) subjectErrors.push(`Subject ${i + 1}: full marks must be between 1 and 100.`);
+      if (obtained < 0)            subjectErrors.push(`Subject ${i + 1}: marks cannot be negative.`);
+      if (obtained > full)         subjectErrors.push(`Subject ${i + 1}: obtained marks (${obtained}) cannot exceed full marks (${full}).`);
       
-      // 1. Ensure the request doesn't try to add/modify other subjects
+      if (existing.examName === "Final Examination" && full !== 100) {
+        subjectErrors.push(`Subject ${i + 1}: full marks must be 100 for Final Examination.`);
+      }
+    }
+    if (subjectErrors.length > 0) return res.status(400).json({ success: false, message: "Validation failed.", errors: subjectErrors });
+
+    if (role === "teacher") {
+      const teacherSubject = user.subject?.toLowerCase();
       const unauthorizedChanges = subjects.filter(s => s.subject?.trim().toLowerCase() !== teacherSubject);
       if (unauthorizedChanges.length > 0) {
         return res.status(403).json({ success: false, message: `You are only authorized to modify your subject: ${user.subject}.` });
       }
 
-      // 2. Merge teacher's changes into the existing subjects array
       subjects.forEach(newSub => {
         const idx = existing.subjects.findIndex(s => s.subject.toLowerCase() === teacherSubject);
         if (idx !== -1) {
@@ -227,7 +259,6 @@ exports.updateResult = async (req, res) => {
       });
       await existing.save();
     } else {
-      // Admin: Overwrite whole array
       existing.subjects = subjects.map(s => ({
         subject:       s.subject.trim(),
         marksObtained: Number(s.marksObtained),

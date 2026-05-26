@@ -1,9 +1,23 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Topbar from "../../components/Topbar";
 import { useApp } from "../../context/AppContext";
 import { Lock, Plus, Pencil, Trash2, X, AlertCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
+import { SUBJECTS } from "../../data/mockData";
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+const EXAM_TYPES = [
+  "First Terminal Examination",
+  "Second Terminal Examination",
+  "Third Term Examination",
+  "Final Examination",
+  "Weekly Test",
+  "Monthly Test",
+  "Class Test",
+];
+
+const MARKS_OPTIONS = [20, 25, 50, 100];
 
 // ── Components ────────────────────────────────────────────────────────────────
 function Skeleton({ height = 16, width = "100%", radius = 6 }) {
@@ -33,19 +47,19 @@ function ResultModal({ result, classes, isTeacher, teacherSubject, onSave, onClo
   const initialSubjects = isEdit 
     ? result.subjects.map(s => ({ ...s }))
     : isTeacher 
-      ? [{ subject: teacherSubject || "", marksObtained: "", fullMarks: 100 }]
-      : [{ subject: "", marksObtained: "", fullMarks: 100 }];
+      ? [{ subject: teacherSubject || SUBJECTS[0], marksObtained: "", fullMarks: 100 }]
+      : [{ subject: SUBJECTS[0], marksObtained: "", fullMarks: 100 }];
 
   const [form, setForm] = useState(isEdit ? {
     studentId: result.student?._id || "",
     class:     result.class || "",
-    examName:  result.examName || "",
-    examYear:  result.examYear || "",
+    examName:  result.examName || EXAM_TYPES[0],
+    examYear:  result.examYear || "2081",
     subjects:  initialSubjects,
   } : {
     studentId: "",
     class:     classes[0] || "",
-    examName:  "First Terminal",
+    examName:  EXAM_TYPES[0],
     examYear:  "2081",
     subjects:  initialSubjects,
   });
@@ -63,19 +77,41 @@ function ResultModal({ result, classes, isTeacher, teacherSubject, onSave, onClo
   }, [form.class]);
 
   const set = (k, v) => {
-    setForm(prev => ({ ...prev, [k]: v }));
+    let updates = { [k]: v };
+    
+    // Logic: If Final Examination, force all full marks to 100
+    if (k === "examName" && v === "Final Examination") {
+      updates.subjects = form.subjects.map(s => ({ ...s, fullMarks: 100 }));
+    }
+    
+    setForm(prev => ({ ...prev, ...updates }));
     setErrors(prev => { const n = { ...prev }; delete n[k]; return n; });
   };
 
   const handleSubChange = (idx, field, val) => {
     const newSubs = [...form.subjects];
-    newSubs[idx] = { ...newSubs[idx], [field]: val };
+    let finalVal = val;
+
+    if (field === "marksObtained") {
+      // Logic: obtained marks cannot exceed full marks
+      const full = Number(newSubs[idx].fullMarks);
+      if (Number(val) > full) finalVal = full;
+    }
+
+    newSubs[idx] = { ...newSubs[idx], [field]: finalVal };
+    
+    // If exam is Final, keep fullMarks locked at 100
+    if (form.examName === "Final Examination" && field === "fullMarks") {
+      newSubs[idx].fullMarks = 100;
+    }
+
     setForm(prev => ({ ...prev, subjects: newSubs }));
   };
 
   const addSubject = () => {
-    if (isTeacher) return; // Teachers only manage one subject
-    setForm(prev => ({ ...prev, subjects: [...prev.subjects, { subject: "", marksObtained: "", fullMarks: 100 }] }));
+    if (isTeacher) return;
+    const full = form.examName === "Final Examination" ? 100 : 100;
+    setForm(prev => ({ ...prev, subjects: [...prev.subjects, { subject: SUBJECTS[0], marksObtained: "", fullMarks: full }] }));
   };
 
   const removeSubject = (idx) => {
@@ -92,7 +128,7 @@ function ResultModal({ result, classes, isTeacher, teacherSubject, onSave, onClo
     form.subjects.forEach((s, i) => {
       if (!s.subject?.trim()) e[`sub_${i}_name`] = "Required";
       if (s.marksObtained === "" || s.marksObtained < 0) e[`sub_${i}_marks`] = "Invalid";
-      if (!s.fullMarks || s.fullMarks <= 0) e[`sub_${i}_full`] = "Invalid";
+      if (!s.fullMarks || s.fullMarks <= 0 || s.fullMarks > 100) e[`sub_${i}_full`] = "Max 100";
       if (Number(s.marksObtained) > Number(s.fullMarks)) e[`sub_${i}_marks`] = "Exceeds max";
     });
 
@@ -144,8 +180,10 @@ function ResultModal({ result, classes, isTeacher, teacherSubject, onSave, onClo
           )}
 
           <div className="form-row">
-            <Field label="Exam Name *" error={errors.examName}>
-              <input className="form-input" placeholder="e.g. First Terminal" value={form.examName} onChange={e => set("examName", e.target.value)} />
+            <Field label="Exam Type *" error={errors.examName}>
+              <select className="form-select" value={form.examName} onChange={e => set("examName", e.target.value)}>
+                {EXAM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
             </Field>
             <Field label="Year (BS) *" error={errors.examYear}>
               <input className="form-input mono" placeholder="e.g. 2081" value={form.examYear} onChange={e => set("examYear", e.target.value)} />
@@ -165,20 +203,28 @@ function ResultModal({ result, classes, isTeacher, teacherSubject, onSave, onClo
             {form.subjects.map((s, i) => (
               <div key={i} className="form-row" style={{ alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
                 <div style={{ flex: 2 }}>
-                  <input className="form-input" placeholder="Subject" value={s.subject} 
-                    onChange={e => handleSubChange(i, "subject", e.target.value)} 
-                    disabled={isTeacher} // Teachers can only edit their own subject
-                  />
+                  {isTeacher ? (
+                    <input className="form-input" value={s.subject} disabled />
+                  ) : (
+                    <select className="form-select" value={s.subject} onChange={e => handleSubChange(i, "subject", e.target.value)}>
+                      {SUBJECTS.map(sub => <option key={sub} value={sub}>{sub}</option>)}
+                    </select>
+                  )}
                   {errors[`sub_${i}_name`] && <span className="form-error">{errors[`sub_${i}_name`]}</span>}
                 </div>
                 <div style={{ flex: 1 }}>
                   <input className="form-input mono" type="number" placeholder="Marks" value={s.marksObtained}
+                    max={s.fullMarks}
                     onChange={e => handleSubChange(i, "marksObtained", e.target.value)} />
                   {errors[`sub_${i}_marks`] && <span className="form-error">{errors[`sub_${i}_marks`]}</span>}
                 </div>
                 <div style={{ flex: 1 }}>
-                  <input className="form-input mono" type="number" placeholder="Full" value={s.fullMarks}
-                    onChange={e => handleSubChange(i, "fullMarks", e.target.value)} />
+                  <select className="form-select mono" value={s.fullMarks} 
+                    onChange={e => handleSubChange(i, "fullMarks", e.target.value)}
+                    disabled={form.examName === "Final Examination"}
+                  >
+                    {MARKS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
                   {errors[`sub_${i}_full`] && <span className="form-error">{errors[`sub_${i}_full`]}</span>}
                 </div>
                 {!isTeacher && form.subjects.length > 1 && (
