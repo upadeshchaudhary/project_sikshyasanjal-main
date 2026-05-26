@@ -1,6 +1,13 @@
 // backend/controllers/students/studentsController.js
 const mongoose = require("mongoose");
 const { Student, User } = require("../../models");
+const { adToBs } = require("../../utils/calendar");
+
+function getCurrentBsYear() {
+  const adNow = new Date().toISOString().split("T")[0];
+  const bsNow = adToBs(adNow);
+  return bsNow ? bsNow.split("-")[0] : "2081";
+}
 
 const ALLOWED_FIELDS = ["name", "rollNo", "class", "section", "dob", "dobBs", "gender", "address", "photo", "parentPhone", "parentName", "admissionYear"];
 const pickFields = (body) => ALLOWED_FIELDS.reduce((acc, key) => { if (body[key] !== undefined) acc[key] = body[key]; return acc; }, {});
@@ -112,6 +119,12 @@ exports.createStudent = async (req, res) => {
     if (exists) return res.status(409).json({ success: false, message: `Roll number ${rollNo} is already taken in class ${cls}.` });
 
     const fields  = pickFields(req.body);
+    
+    // Auto-set current BS year for new students
+    if (!fields.admissionYear) {
+      fields.admissionYear = getCurrentBsYear();
+    }
+
     const student = await Student.create({ ...fields, rollNo: parseInt(rollNo, 10) });
 
     // ── Create or Link Parent User Account ────────────────────────────────────

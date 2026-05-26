@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-// FIXED: correct status values matching the model
 const STATUSES = ["all", "paid", "partially_paid", "pending", "overdue"];
 const STATUS_LABEL = {
   paid:           "Paid",
@@ -115,7 +114,6 @@ function PaymentModal({ fee, onClose, onSaved }) {
     try {
       const paid    = Number(form.paidAmount);
       const newPaid = (fee.paidAmount || 0) + paid;
-      // Auto-determine status — backend will also derive it
       const status  = newPaid >= fee.amount ? "paid" : "partially_paid";
       await axios.put(`/fees/${fee._id}`, {
         paidAmount:    newPaid,
@@ -141,7 +139,6 @@ function PaymentModal({ fee, onClose, onSaved }) {
           <button className="btn btn-ghost btn-sm" onClick={onClose}><X size={16} /></button>
         </div>
         <div className="modal-body">
-          {/* Fee summary */}
           <div style={{
             padding: "12px 14px", background: "var(--canvas)",
             borderRadius: 8, marginBottom: 16, fontSize: 13,
@@ -218,7 +215,10 @@ function AddFeeModal({ classes, onClose, onSaved }) {
       .then(res => {
         const list = res.data.students || [];
         setStudents(list);
-        if (list.length > 0) setForm(p => ({ ...p, student: list[0]._id }));
+        if (list.length > 0) {
+           const first = list[0];
+           setForm(p => ({ ...p, student: first._id, academicYear: first.admissionYear || "" }));
+        }
       })
       .catch(() => setStudents([]));
   }, [selClass]);
@@ -226,7 +226,11 @@ function AddFeeModal({ classes, onClose, onSaved }) {
   const set = (k, v) => {
     let updates = { [k]: v };
 
-    // Auto-sync AD and BS dates
+    if (k === "student") {
+      const s = students.find(x => x._id === v);
+      if (s) updates.academicYear = s.admissionYear || "";
+    }
+
     if (k === "dueDate") {
       const bs = adToBs(v);
       if (bs) updates.dueDateBs = bs;
@@ -238,8 +242,6 @@ function AddFeeModal({ classes, onClose, onSaved }) {
     }
 
     setForm(p => ({ ...p, ...updates }));
-    
-    // Clear errors for fields being updated
     setErrors(p => {
       const next = { ...p };
       Object.keys(updates).forEach(key => delete next[key]);
@@ -319,8 +321,10 @@ function AddFeeModal({ classes, onClose, onSaved }) {
             </Field>
             <Field label="Academic Year (BS) *" error={errors.academicYear}>
               <input className={`form-input mono ${errors.academicYear ? "error" : ""}`}
-                placeholder="e.g. 2081-82"
-                value={form.academicYear} onChange={e => set("academicYear", e.target.value)} />
+                placeholder="Admission Year"
+                value={form.academicYear} 
+                disabled 
+                title="Academic year is automatically linked to the student's admission year." />
             </Field>
           </div>
         </div>
@@ -341,12 +345,10 @@ function AddFeeModal({ classes, onClose, onSaved }) {
 export default function FeesPage() {
   const { currentUser } = useApp();
 
-  // Derive roles at render time — never store in useState
   const isAdmin   = currentUser?.role === "admin";
   const isParent  = currentUser?.role === "parent";
   const isTeacher = currentUser?.role === "teacher";
 
-  // Teachers have no access to fee data
   if (isTeacher) {
     return (
       <>
@@ -369,17 +371,14 @@ export default function FeesPage() {
   const [loading,   setLoading]   = useState(true);
   const [sumLoading,setSumLoading]= useState(true);
 
-  // Filters
   const [statusFilter, setStatusFilter] = useState("all");
   const [classFilter,  setClassFilter]  = useState("all");
   const [page,         setPage]         = useState(1);
   const LIMIT = 20;
 
-  // Modals
-  const [payModal, setPayModal] = useState(null);  // fee record being paid
+  const [payModal, setPayModal] = useState(null);
   const [addModal, setAddModal] = useState(false);
 
-  // Fetch classes
   useEffect(() => {
     if (isParent) return;
     axios.get("/students/classes")
@@ -387,7 +386,6 @@ export default function FeesPage() {
       .catch(() => {});
   }, [isParent]);
 
-  // Fetch admin summary
   useEffect(() => {
     if (!isAdmin) return;
     setSumLoading(true);
@@ -397,13 +395,11 @@ export default function FeesPage() {
       .finally(() => setSumLoading(false));
   }, [isAdmin]);
 
-  // Fetch records
   const fetchRecords = useCallback(async () => {
     setLoading(true);
     try {
       const params = { page, limit: LIMIT };
       if (!isParent) {
-        // FIXED: correct status values
         if (statusFilter !== "all") params.status = statusFilter;
         if (classFilter  !== "all") params.class  = classFilter;
       }
@@ -420,7 +416,6 @@ export default function FeesPage() {
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
   useEffect(() => { setPage(1); }, [statusFilter, classFilter]);
 
-  // Reload summary after payment
   const refreshSummary = () => {
     if (!isAdmin) return;
     axios.get("/fees/summary")
@@ -442,7 +437,6 @@ export default function FeesPage() {
 
   const totalPages = Math.ceil(total / LIMIT);
 
-  // Parent outstanding balance
   const outstanding = records
     .filter(r => r.status !== "paid")
     .reduce((s, r) => s + Math.max(0, (r.amount || 0) - (r.paidAmount || 0)), 0);
@@ -451,8 +445,6 @@ export default function FeesPage() {
     <>
       <Topbar title={isParent ? "Fee Status" : "Fee Tracking"} />
       <div className="page-content">
-
-        {/* Header */}
         <div className="page-header">
           <div className="page-header-left">
             <h1 className="page-title">{isParent ? "Fee Status" : "Fee Tracking"}</h1>
@@ -469,7 +461,6 @@ export default function FeesPage() {
           )}
         </div>
 
-        {/* Admin summary cards */}
         {isAdmin && (
           <div className="fee-summary" style={{ marginBottom: 20 }}>
             <div className="fee-box">
@@ -517,7 +508,6 @@ export default function FeesPage() {
           </div>
         )}
 
-        {/* Parent outstanding banner */}
         {isParent && outstanding > 0 && (
           <div style={{
             display: "flex", alignItems: "center", gap: 10,
@@ -536,9 +526,7 @@ export default function FeesPage() {
           </div>
         )}
 
-        {/* Filters */}
         <div className="filter-bar">
-          {/* FIXED: correct status values */}
           {STATUSES.map(s => (
             <button key={s}
               className={`btn btn-sm ${statusFilter === s ? "btn-primary" : "btn-outline"}`}
@@ -556,7 +544,6 @@ export default function FeesPage() {
           )}
         </div>
 
-        {/* Table */}
         <div className="table-wrap">
           <table className="data-table">
             <thead>
@@ -583,7 +570,6 @@ export default function FeesPage() {
                     </tr>
                   ))
                 : records.map(f => {
-                    // FIXED: use paidAmount not paid
                     const paid    = f.paidAmount || 0;
                     const balance = Math.max(0, (f.amount || 0) - paid);
 
@@ -604,7 +590,6 @@ export default function FeesPage() {
                           NPR {balance.toLocaleString()}
                         </td>
                         <td>
-                          {/* FIXED: correct status tag classes */}
                           <span className={`tag ${STATUS_TAG[f.status] || "tag-gray"}`}>
                             {STATUS_LABEL[f.status] || f.status || "—"}
                           </span>
@@ -613,7 +598,6 @@ export default function FeesPage() {
                           {(f.paymentMethod || "—").replace("_", " ")}
                         </td>
                         <td>
-                          {/* FIXED: BS date shown by default */}
                           <span className="bs-date">{f.dueDateBs || "—"}</span>
                           {f.dueDate && (
                             <span style={{ fontSize: 10, color: "var(--text-3)", display: "block" }}>
@@ -661,7 +645,6 @@ export default function FeesPage() {
           )}
         </div>
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <div className="pagination">
             <button className="page-btn" disabled={page === 1}
@@ -692,7 +675,6 @@ export default function FeesPage() {
         )}
       </div>
 
-      {/* Modals */}
       {payModal && (
         <PaymentModal fee={payModal} onClose={() => setPayModal(null)} onSaved={onPaymentSaved} />
       )}

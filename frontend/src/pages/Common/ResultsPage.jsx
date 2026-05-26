@@ -5,6 +5,7 @@ import { Lock, Plus, Pencil, Trash2, X, AlertCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
 import { SUBJECTS } from "../../data/mockData";
+import { adToBs } from "../../utils/calendar";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const EXAM_TYPES = [
@@ -44,6 +45,12 @@ function ResultModal({ result, classes, isTeacher, teacherSubject, onSave, onClo
   const [students, setStudents] = useState([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
 
+  const getTodayBSYear = useCallback(() => {
+    const adStr = new Date().toISOString().split("T")[0];
+    const bsStr = adToBs(adStr);
+    return bsStr ? bsStr.split("-")[0] : "2081";
+  }, []);
+
   const initialSubjects = isEdit 
     ? result.subjects.map(s => ({ ...s }))
     : isTeacher 
@@ -54,13 +61,13 @@ function ResultModal({ result, classes, isTeacher, teacherSubject, onSave, onClo
     studentId: result.student?._id || "",
     class:     result.class || "",
     examName:  result.examName || EXAM_TYPES[0],
-    examYear:  result.examYear || "2081",
+    examYear:  result.examYear || getTodayBSYear(),
     subjects:  initialSubjects,
   } : {
     studentId: "",
     class:     classes[0] || "",
     examName:  EXAM_TYPES[0],
-    examYear:  "2081",
+    examYear:  getTodayBSYear(),
     subjects:  initialSubjects,
   });
 
@@ -77,6 +84,7 @@ function ResultModal({ result, classes, isTeacher, teacherSubject, onSave, onClo
   }, [form.class]);
 
   const set = (k, v) => {
+    if (k === "examYear") return;
     let updates = { [k]: v };
     
     // Logic: If Final Examination, force all full marks to 100
@@ -186,7 +194,7 @@ function ResultModal({ result, classes, isTeacher, teacherSubject, onSave, onClo
               </select>
             </Field>
             <Field label="Year (BS) *" error={errors.examYear}>
-              <input className="form-input mono" placeholder="e.g. 2081" value={form.examYear} onChange={e => set("examYear", e.target.value)} />
+              <input className="form-input mono" value={form.examYear} disabled title="Year is automatically set to current academic year" />
             </Field>
           </div>
 
@@ -463,4 +471,3 @@ export default function ResultsPage() {
     </>
   );
 }
-

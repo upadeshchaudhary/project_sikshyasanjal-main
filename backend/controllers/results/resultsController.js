@@ -105,11 +105,22 @@ const EXAM_TYPES = [
   "Class Test",
 ];
 
+const { adToBs } = require("../../utils/calendar");
+
+function getCurrentBsYear() {
+  const adNow = new Date().toISOString().split("T")[0];
+  const bsNow = adToBs(adNow);
+  return bsNow ? bsNow.split("-")[0] : "2081";
+}
+
 // POST /api/results
 exports.uploadResult = async (req, res) => {
   try {
     const { userId, role } = req.user;
-    const { student, examName, examYear, class: cls, subjects } = req.body;
+    let { student, examName, examYear, class: cls, subjects } = req.body;
+
+    // Logic: Year should always be current year
+    examYear = getCurrentBsYear();
 
     if (!student || !isValidId(student)) return res.status(400).json({ success: false, message: "Valid student ID is required." });
     if (!examName?.trim() || !EXAM_TYPES.includes(examName.trim())) {

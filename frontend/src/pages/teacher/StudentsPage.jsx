@@ -126,18 +126,28 @@ function Field({ label, error, children }) {
 }
 
 // ── Add / Edit modal ──────────────────────────────────────────────────────────
-function StudentModal({ student, classes, onSave, onClose, saving }) {
+function StudentModal({ student, classes, onSave, onClose, saving, isAdmin }) {
   const isEdit = !!student;
   const datePickerRef = useRef(null);
 
-  // Normalize gender to Title Case — DB stores lowercase ("male"), select needs "Male"
   const normalizeGender = (g) => {
     if (!g) return "Male";
     const l = g.toLowerCase();
     return l.charAt(0).toUpperCase() + l.slice(1);
   };
 
-  const empty = { name: "", rollNo: "", class: classes[0] || "", gender: "Male", parentName: "", parentPhone: "", address: "", dob: "", dobBs: "", admissionYear: "" };
+  const getTodayBSYear = () => {
+    const adStr = new Date().toISOString().split("T")[0];
+    const bsStr = adToBs(adStr);
+    return bsStr ? bsStr.split("-")[0] : "2081";
+  };
+
+  const empty = { 
+    name: "", rollNo: "", class: classes[0] || "", gender: "Male", 
+    parentName: "", parentPhone: "", address: "", dob: "", dobBs: "", 
+    admissionYear: getTodayBSYear() 
+  };
+  
   const [form, setForm]     = useState(isEdit ? { ...empty, ...student, gender: normalizeGender(student?.gender) } : empty);
   const [errors, setErrors] = useState({});
 
@@ -147,7 +157,9 @@ function StudentModal({ student, classes, onSave, onClose, saving }) {
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
 
+
   const set = (k, v) => {
+    if (k === "admissionYear" && !isAdmin) return;
     let updates = { [k]: v };
 
     if (k === "dob") {
@@ -271,7 +283,6 @@ function StudentModal({ student, classes, onSave, onClose, saving }) {
                   onChange={e => set("dobBs", e.target.value)}
                   style={{ flex: 1 }}
                 />
-                {/* Hidden AD date picker — triggers via the calendar icon button */}
                 <div style={{ position: "relative", display: "flex" }}>
                   <button
                     type="button"
@@ -294,7 +305,9 @@ function StudentModal({ student, classes, onSave, onClose, saving }) {
             </Field>
             <Field label="Batch / Admission Year (BS)" error={errors.admissionYear}>
               <input className={`form-input mono ${errors.admissionYear ? "error" : ""}`} placeholder="e.g. 2079"
-                value={form.admissionYear} onChange={e => set("admissionYear", e.target.value)} />
+                value={form.admissionYear} 
+                onChange={e => set("admissionYear", e.target.value)}
+                disabled={!isAdmin} />
             </Field>
           </div>
           <div className="form-row">
@@ -321,39 +334,33 @@ function StudentModal({ student, classes, onSave, onClose, saving }) {
 export default function StudentsPage() {
   const { currentUser } = useApp();
 
-  // Derive roles at render time — never in useState
   const isAdmin   = currentUser?.role === "admin";
   const isTeacher = currentUser?.role === "teacher";
   const isParent  = currentUser?.role === "parent";
 
-  // Data state
   const [students,     setStudents]     = useState([]);
   const [classes,      setClasses]      = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [total,        setTotal]        = useState(0);
 
-  // Filters — hidden entirely from parents
   const [search,       setSearch]       = useState("");
   const [classFilter,  setClassFilter]  = useState("all");
   const [page,         setPage]         = useState(1);
   const LIMIT = 20;
 
-  // Modals
   const [viewModal,    setViewModal]    = useState(null);
   const [editModal,    setEditModal]    = useState(null);
   const [addModal,     setAddModal]     = useState(false);
   const [confirmDel,   setConfirmDel]   = useState(null);
   const [saving,       setSaving]       = useState(false);
 
-  // ── Fetch class list (role-scoped by backend) ─────────────────────────────
   useEffect(() => {
-    if (isParent) return; // parents see no filters
+    if (isParent) return;
     axios.get("/students/classes")
       .then(res => setClasses(res.data.classes || []))
       .catch(() => setClasses([]));
   }, [isParent]);
 
-  // ── Fetch students ────────────────────────────────────────────────────────
   const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
@@ -373,11 +380,8 @@ export default function StudentsPage() {
   }, [page, search, classFilter, isParent]);
 
   useEffect(() => { fetchStudents(); }, [fetchStudents]);
-
-  // Reset to page 1 when filters change
   useEffect(() => { setPage(1); }, [search, classFilter]);
 
-  // ── Add student ───────────────────────────────────────────────────────────
   const handleAdd = async (form) => {
     setSaving(true);
     try {
@@ -392,7 +396,6 @@ export default function StudentsPage() {
     }
   };
 
-  // ── Edit student ──────────────────────────────────────────────────────────
   const handleEdit = async (form) => {
     setSaving(true);
     try {
@@ -407,7 +410,6 @@ export default function StudentsPage() {
     }
   };
 
-  // ── Delete student ────────────────────────────────────────────────────────
   const handleDelete = async () => {
     if (!confirmDel) return;
     try {
@@ -426,8 +428,6 @@ export default function StudentsPage() {
     <>
       <Topbar title={isParent ? "My Child" : "Students"} />
       <div className="page-content">
-
-        {/* Page header */}
         <div className="page-header">
           <div className="page-header-left">
             <h1 className="page-title">{isParent ? "My Child" : "Students"}</h1>
@@ -437,7 +437,6 @@ export default function StudentsPage() {
                 : `${total.toLocaleString()} students enrolled`}
             </p>
           </div>
-          {/* Add button — admin only */}
           {isAdmin && (
             <button className="btn btn-primary" onClick={() => setAddModal(true)}>
               <Plus size={15} /> Add Student
@@ -445,7 +444,6 @@ export default function StudentsPage() {
           )}
         </div>
 
-        {/* Filter bar — hidden from parents */}
         {!isParent && (
           <div className="filter-bar">
             <div className="search-box" style={{ flex: "none", width: 260 }}>
@@ -479,7 +477,6 @@ export default function StudentsPage() {
           </div>
         )}
 
-        {/* Table */}
         <div className="table-wrap">
           <table className="data-table">
             <thead>
@@ -551,7 +548,6 @@ export default function StudentsPage() {
             </tbody>
           </table>
 
-          {/* Empty state */}
           {!loading && students.length === 0 && (
             <div className="empty-state">
               <Users size={40} />
@@ -572,7 +568,6 @@ export default function StudentsPage() {
           )}
         </div>
 
-        {/* Pagination — hidden for parents */}
         {!isParent && totalPages > 1 && (
           <div className="pagination">
             <button
@@ -612,10 +607,9 @@ export default function StudentsPage() {
         )}
       </div>
 
-      {/* Modals */}
       {viewModal    && <ViewModal    student={viewModal} isParent={isParent} onClose={() => setViewModal(null)} />}
-      {addModal     && <StudentModal classes={classes} onSave={handleAdd}  onClose={() => setAddModal(false)}  saving={saving} />}
-      {editModal    && <StudentModal student={editModal} classes={classes} onSave={handleEdit} onClose={() => setEditModal(null)} saving={saving} />}
+      {addModal     && <StudentModal classes={classes} onSave={handleAdd}  onClose={() => setAddModal(false)}  saving={saving} isAdmin={isAdmin} />}
+      {editModal    && <StudentModal student={editModal} classes={classes} onSave={handleEdit} onClose={() => setEditModal(null)} saving={saving} isAdmin={isAdmin} />}
       {confirmDel   && <ConfirmModal student={confirmDel} onConfirm={handleDelete} onCancel={() => setConfirmDel(null)} />}
     </>
   );
