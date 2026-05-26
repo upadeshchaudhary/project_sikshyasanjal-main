@@ -129,12 +129,8 @@ export default function LoginPage() {
 
     if (selectedRole === "parent") {
       if (!isValidPhone(phone)) errs.phone = "Enter a valid Nepali mobile number";
-      if (parentMode === "otp") {
-        if (!otpSent)             errs.otp = "Send OTP first";
-        else if (otp.length < 6)  errs.otp = "Enter the 6-digit OTP";
-      } else {
-        if (!password)            errs.password = "Password is required";
-      }
+      if (!otpSent)             errs.otp = "Send OTP first";
+      else if (otp.length < 6)  errs.otp = "Enter the 6-digit OTP";
     } else {
       if (!isValidEmail(email))   errs.email = "Enter a valid email address";
       if (!password)              errs.password = "Password is required";
@@ -146,11 +142,7 @@ export default function LoginPage() {
     try {
       let res;
       if (selectedRole === "parent") {
-        if (parentMode === "otp") {
-          res = await axios.post("/auth/parent/verify-otp", { phone, otp, otpToken });
-        } else {
-          res = await axios.post("/auth/parent/login", { phone, password });
-        }
+        res = await axios.post("/auth/parent/verify-otp", { phone, otp, otpToken });
       } else {
         res = await axios.post("/auth/login", { email, password, role: selectedRole });
       }
@@ -327,30 +319,6 @@ function FormStep({
       )}
 
       {isParent && (
-        <div style={s.toggleRow}>
-          <button onClick={() => setParentMode("otp")} style={{ ...s.toggleBtn, ...(parentMode === "otp" ? s.toggleActive(role.color) : {}) }}>📱 Phone OTP</button>
-          <button onClick={() => setParentMode("password")} style={{ ...s.toggleBtn, ...(parentMode === "password" ? s.toggleActive(role.color) : {}) }}>🔑 Password</button>
-        </div>
-      )}
-
-      {!isParent && (
-        <Field label="Email Address" error={errors.email}>
-          <div style={{ ...s.inputWrap, borderColor: errors.email ? "#EF4444" : "#E8EAED" }}>
-            <span style={s.inputIconWrap}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
-              </svg>
-            </span>
-            <input
-              style={s.input} type="email" placeholder="you@example.com"
-              value={email} onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && onSubmit()}
-            />
-          </div>
-        </Field>
-      )}
-
-      {isParent && (
         <Field label="Phone Number" error={errors.phone}>
           <div style={{ ...s.inputWrap, borderColor: errors.phone ? "#EF4444" : "#E8EAED" }}>
             <span style={{ ...s.inputIconWrap, fontSize: 12, color: "#374151", fontWeight: 600 }}>+977</span>
@@ -362,7 +330,7 @@ function FormStep({
         </Field>
       )}
 
-      {(!isParent || parentMode === "password") && (
+      {!isParent && (
         <Field label="Password" error={errors.password}>
           <div style={{ ...s.inputWrap, borderColor: errors.password ? "#EF4444" : "#E8EAED" }}>
             <span style={s.inputIconWrap}>
@@ -382,7 +350,7 @@ function FormStep({
         </Field>
       )}
 
-      {isParent && parentMode === "otp" && (
+      {isParent && (
         <>
           {!otpSent ? (
             <ActionButton color={role.color} loading={loading} onClick={onSendOtp}>Generate OTP</ActionButton>
@@ -412,7 +380,7 @@ function FormStep({
         </>
       )}
 
-      {(!isParent || parentMode === "password") && (
+      {!isParent && (
         <div style={{ marginTop: 16 }}>
           <ActionButton color={role.color} loading={loading} onClick={onSubmit}>Sign In</ActionButton>
         </div>

@@ -103,7 +103,7 @@ exports.getStudentById = async (req, res) => {
 // POST /api/students
 exports.createStudent = async (req, res) => {
   try {
-    const { name, rollNo, class: cls } = req.body;
+    const { name, rollNo, class: cls, parentPhone, parentName } = req.body;
     if (!name?.trim()) return res.status(400).json({ success: false, message: "Student name is required." });
     if (!cls?.trim())  return res.status(400).json({ success: false, message: "Class is required." });
     if (rollNo == null) return res.status(400).json({ success: false, message: "Roll number is required." });
@@ -113,6 +113,39 @@ exports.createStudent = async (req, res) => {
 
     const fields  = pickFields(req.body);
     const student = await Student.create({ ...fields, rollNo: parseInt(rollNo, 10) });
+
+    // ── Create or Link Parent User Account ────────────────────────────────────
+    if (parentPhone) {
+      // Validate Nepali phone format to match UserSchema
+      if (/^(98|97|96)\d{8}$/.test(parentPhone)) {
+        let parent = await User.findOne({ phone: parentPhone, role: "parent" });
+
+        if (parent) {
+          // Link existing parent to this new student
+          parent.childId = student._id;
+          parent.childName = student.name;
+          parent.childClass = student.class;
+          await parent.save();
+
+          student.parentId = parent._id;
+          await student.save();
+        } else {
+          // Create new Parent account
+          const newParent = await User.create({
+            name: parentName || `Parent of ${name}`,
+            role: "parent",
+            phone: parentPhone,
+            childId: student._id,
+            childName: student.name,
+            childClass: student.class,
+          });
+
+          student.parentId = newParent._id;
+          await student.save();
+        }
+      }
+    }
+
     res.status(201).json({ success: true, student });
   } catch (err) {
     if (err.code === 11000) return res.status(409).json({ success: false, message: "A student with this roll number already exists in this class." });
@@ -140,8 +173,43 @@ exports.updateStudent = async (req, res) => {
     const updates = pickFields(req.body);
     if (Object.keys(updates).length === 0) return res.status(400).json({ success: false, message: "No valid fields to update." });
 
-    const student = await Student.findByIdAndUpdate(req.params.id, { $set: updates }, { new: true, runValidators: true }).lean();
+    const student = await Student.findByIdAndUpdate(req.params.id, { $set: updates }, { new: true, runValidators: true });
     if (!student) return res.status(404).json({ success: false, message: "Student not found." });
+
+    // ── Handle Parent Account Sync/Linking ────────────────────────────────────
+    if (updates.parentPhone && /^(98|97|96)\d{8}$/.test(updates.parentPhone)) {
+      // If phone changed, find or create new parent account
+      let parent = await User.findOne({ phone: updates.parentPhone, role: "parent" });
+
+      if (parent) {
+        parent.childId = student._id;
+        parent.childName = student.name;
+        parent.childClass = student.class;
+        await parent.save();
+
+        student.parentId = parent._id;
+        await student.save();
+      } else {
+        const newParent = await User.create({
+          name: updates.parentName || student.parentName || `Parent of ${student.name}`,
+          role: "parent",
+          phone: updates.parentPhone,
+          childId: student._id,
+          childName: student.name,
+          childClass: student.class,
+        });
+
+        student.parentId = newParent._id;
+        await student.save();
+      }
+    } else if (student.parentId && (updates.name || updates.class)) {
+      // If phone didn't change but name/class did, sync with existing parent account
+      await User.findByIdAndUpdate(student.parentId, {
+        childName: student.name,
+        childClass: student.class,
+      });
+    }
+
     res.json({ success: true, student });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });

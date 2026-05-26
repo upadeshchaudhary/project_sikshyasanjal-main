@@ -7,7 +7,7 @@ import {
   Save, ChevronLeft, ChevronRight, Clock,
   Info, CheckCheck, RefreshCw, Users,
 } from "lucide-react";
-import { getDaysInBSMonth, BS_MONTH_NAMES } from "../../utils/calendar";
+import { getDaysInBSMonth, BS_MONTH_NAMES, adToBs, bsTotalDays } from "../../utils/calendar";
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const STATUS_OPTIONS = ["present", "absent", "late", "excused"];
@@ -26,41 +26,22 @@ const ANCHOR = { year: 2082, month: 1, dow: 6 };
 
 function getDaysBefore(year, month) {
   let total = 0;
-  for (let y = ANCHOR.year; y < year; y++)
-    for (let m = 1; m <= 12; m++) total += getDaysInBSMonth(y, m);
-  for (let m = ANCHOR.month; m < month; m++) total += getDaysInBSMonth(year, m);
-  return total;
+  // Use a fixed epoch from calendar utility to be more robust
+  const epochTotal = bsTotalDays(ANCHOR.year, ANCHOR.month, 1);
+  const targetTotal = bsTotalDays(year, month, 1);
+  return targetTotal - epochTotal;
 }
 
 function getFirstDayOfMonth(year, month) {
-  return (ANCHOR.dow + getDaysBefore(year, month)) % 7;
+  const diff = getDaysBefore(year, month);
+  return (((ANCHOR.dow + diff) % 7) + 7) % 7;
 }
 
-// Convert AD Date to a "YYYY-MM-DD" BS string using today's date from the system
-// For a production app, use a proper nepali-date library or backend BS conversion
 function getTodayBS() {
-  // Use the app's BS utility if available, otherwise approximate
-  // This is a simplified mapping — production should use a proper BS converter
-  const now = new Date();
-  // Approximate: if today is between April 13 – April 13 (next year) = Baisakh 1 of that BS year
-  // For now we store the year difference: AD year + 56/57 ≈ BS year
-  // Real implementation should use a lookup table
-  const adYear  = now.getFullYear();
-  const adMonth = now.getMonth() + 1; // 1-indexed
-  const adDay   = now.getDate();
-
-  // Approximate BS year (accurate enough for UI purposes)
-  const bsYear = adMonth > 4 || (adMonth === 4 && adDay >= 14)
-    ? adYear + 57
-    : adYear + 56;
-
-  // Approximate BS month from AD month (very rough — use nepali-date in production)
-  // Baisakh = mid April to mid May, Jestha = mid May to mid June, etc.
-  const monthOffset = ((adMonth - 4 + 12) % 12);
-  const bsMonth     = (monthOffset + 1 > 12) ? monthOffset - 11 : monthOffset + 1;
-  const bsDay       = adDay; // rough approximation
-
-  return { year: bsYear, month: bsMonth, day: bsDay };
+  const adStr = new Date().toISOString().split("T")[0];
+  const bsStr = adToBs(adStr);
+  const [y, m, d] = bsStr.split("-").map(Number);
+  return { year: y, month: m, day: d };
 }
 
 function isSaturday(dow) { return dow === 6; }

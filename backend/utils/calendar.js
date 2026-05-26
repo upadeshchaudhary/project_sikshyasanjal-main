@@ -1,103 +1,105 @@
 // backend/utils/calendar.js
 // Bikram Sambat (BS) to Gregorian (AD) calendar conversion utility
+// Accurate version synchronized with frontend logic
 
-const BS_MONTHS_INFO = [
-  { name: "Baishakh",   days: 31, adMonth: 4 },
-  { name: "Jyeshtha",   days: 31, adMonth: 5 },
-  { name: "Ashadh",     days: 32, adMonth: 6 },
-  { name: "Shrawan",    days: 32, adMonth: 7 },
-  { name: "Bhadra",     days: 31, adMonth: 8 },
-  { name: "Ashwin",     days: 30, adMonth: 9 },
-  { name: "Kartik",     days: 29, adMonth: 10 },
-  { name: "Mangsir",    days: 30, adMonth: 11 },
-  { name: "Poush",      days: 30, adMonth: 12 },
-  { name: "Magh",       days: 29, adMonth: 1 },
-  { name: "Falgun",     days: 30, adMonth: 2 },
-  { name: "Chaitra",    days: 32, adMonth: 3 },
+const BS_MONTH_NAMES = [
+  "Baisakh", "Jestha", "Ashadh", "Shrawan",
+  "Bhadra",  "Ashwin", "Kartik", "Mangsir",
+  "Poush",   "Magh",   "Falgun", "Chaitra",
 ];
 
-const BS_START = new Date(1944, 3, 14); // BS 2000 = AD 1944-04-14
+// Days in each BS month per year (2078 - 2088)
+const BS_DAYS = {
+  2078: [31,31,32,32,31,30,30,29,30,29,30,30],
+  2079: [31,31,32,31,31,31,30,29,30,29,30,30],
+  2080: [31,32,31,32,31,30,30,30,29,29,30,30],
+  2081: [31,31,32,32,31,30,30,29,30,29,30,30],
+  2082: [31,31,32,32,31,30,30,29,30,29,30,30],
+  2083: [31,32,31,32,31,30,30,30,29,30,29,31],
+  2084: [30,32,31,32,31,30,30,30,29,30,30,30],
+  2085: [31,31,32,31,31,30,30,30,29,30,30,30],
+  2086: [31,31,32,32,31,30,30,29,30,29,30,30],
+  2087: [31,32,31,32,31,30,30,29,30,29,30,30],
+  2088: [31,32,31,32,31,30,30,30,29,30,29,30],
+};
+
+const BS_EPOCH = { year: 2078, month: 1, day: 1 };
+const AD_EPOCH = new Date(Date.UTC(2021, 3, 14)); // April 14, 2021 (UTC to match backend storage)
+
+function getDaysInBsMonth(year, month) {
+  if (month < 1 || month > 12) return 30;
+  const row = BS_DAYS[year];
+  if (!row) return 30;
+  return row[month - 1];
+}
+
+function bsTotalDays(year, month, day) {
+  let total = 0;
+  for (let y = BS_EPOCH.year; y < year; y++) {
+    const row = BS_DAYS[y];
+    if (row) total += row.reduce((s, d) => s + d, 0);
+    else     total += 365;
+  }
+  for (let m = 1; m < month; m++) {
+    total += getDaysInBsMonth(year, m);
+  }
+  total += (day || 1) - 1;
+  return total;
+}
 
 function bsToAd(bsYear, bsMonth, bsDay) {
-  if (bsYear < 2000 || bsYear > 2100) return null;
+  if (bsYear < BS_EPOCH.year || bsYear > 2088) return null;
   if (bsMonth < 1 || bsMonth > 12) return null;
-  if (bsDay < 1 || bsDay > BS_MONTHS_INFO[bsMonth - 1]?.days) return null;
 
-  const daysFromBsZero = (bsYear - 2000) * 365;
-  let monthDays        = 0;
-
-  for (let i = 0; i < bsMonth - 1; i++) {
-    monthDays += BS_MONTHS_INFO[i].days;
-  }
-
-  const totalDays = daysFromBsZero + monthDays + bsDay - 1;
-  const adDate    = new Date(BS_START);
-  adDate.setDate(adDate.getDate() + totalDays);
-
+  const diffDays = bsTotalDays(bsYear, bsMonth, bsDay || 1);
+  const adDate = new Date(AD_EPOCH);
+  adDate.setUTCDate(adDate.getUTCDate() + diffDays);
+  adDate.setUTCHours(0, 0, 0, 0);
   return adDate;
 }
 
-function adToBs(adDate) {
-  if (!(adDate instanceof Date)) return null;
+function adToBs(adDateInput) {
+  const adDate = new Date(adDateInput);
+  if (isNaN(adDate.getTime())) return null;
+  adDate.setUTCHours(0, 0, 0, 0);
 
-  const timeDiff = adDate - BS_START;
-  const dayDiff  = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+  // Difference in days from epoch
+  let diffDays = Math.floor((adDate.getTime() - AD_EPOCH.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return null;
 
-  if (dayDiff < 0) return null;
+  let y = BS_EPOCH.year;
+  let m = BS_EPOCH.month;
+  let d = BS_EPOCH.day;
 
-  let bsYear = 2000;
-  let dayCounter = dayDiff;
-
-  while (dayCounter >= 365) {
-    dayCounter -= 365;
-    bsYear++;
+  while (true) {
+    const row = BS_DAYS[y];
+    const daysInYear = row ? row.reduce((s, d) => s + d, 0) : 365;
+    if (diffDays >= daysInYear) {
+      diffDays -= daysInYear;
+      y++;
+    } else {
+      break;
+    }
   }
 
-  let bsMonth = 1;
-  let daysInCurrentMonth = BS_MONTHS_INFO[0].days;
-
-  while (dayCounter >= daysInCurrentMonth) {
-    dayCounter -= daysInCurrentMonth;
-    bsMonth++;
-    if (bsMonth > 12) { bsYear++; bsMonth = 1; }
-    daysInCurrentMonth = BS_MONTHS_INFO[bsMonth - 1].days;
+  while (true) {
+    const daysInMonth = getDaysInBsMonth(y, m);
+    if (diffDays >= daysInMonth) {
+      diffDays -= daysInMonth;
+      m++;
+    } else {
+      break;
+    }
   }
 
-  const bsDay = dayCounter + 1;
-
-  if (bsMonth < 1 || bsMonth > 12 || bsDay < 1 || bsDay > BS_MONTHS_INFO[bsMonth - 1].days) return null;
-
-  return { year: bsYear, month: bsMonth, day: bsDay };
-}
-
-function formatBsDate(bsYear, bsMonth, bsDay) {
-  const year  = String(bsYear).padStart(4, "0");
-  const month = String(bsMonth).padStart(2, "0");
-  const day   = String(bsDay).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function parseBsDate(dateStr) {
-  const match = dateStr?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return null;
-  return { year: parseInt(match[1], 10), month: parseInt(match[2], 10), day: parseInt(match[3], 10) };
-}
-
-function getBsMonthName(month) {
-  return BS_MONTHS_INFO[month - 1]?.name || null;
-}
-
-function getDaysInBsMonth(year, month) {
-  if (month < 1 || month > 12) return null;
-  return BS_MONTHS_INFO[month - 1].days;
+  d += diffDays;
+  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
 module.exports = {
   bsToAd,
   adToBs,
-  formatBsDate,
-  parseBsDate,
-  getBsMonthName,
   getDaysInBsMonth,
-  BS_MONTHS_INFO,
+  bsTotalDays,
+  BS_MONTH_NAMES,
 };

@@ -5,8 +5,7 @@ const { Attendance, User, Student } = require("../../models");
 function toMidnightUTC(dateInput) {
   const d = new Date(dateInput);
   if (isNaN(d.getTime())) return null;
-  d.setUTCHours(0, 0, 0, 0);
-  return d;
+  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
 }
 
 function dayRange(dateInput) {
@@ -17,13 +16,19 @@ function dayRange(dateInput) {
   return { $gte: start, $lt: end };
 }
 
+const { bsToAd, getDaysInBsMonth } = require("../../utils/calendar");
+
 function monthRangeFromQuery(year, month) {
-  if (year > 2100) {
-    const adYear  = year - 57;
-    const adMonth = ((month + 2) % 12) + 1;
-    const adjYear = adMonth < 4 ? adYear + 1 : adYear;
-    return { $gte: new Date(Date.UTC(adjYear, adMonth - 1, 1)), $lt: new Date(Date.UTC(adjYear, adMonth, 1)) };
+  if (year > 2000) {
+    // Treat as BS year
+    const startAd = bsToAd(year, month, 1);
+    const lastDay = getDaysInBsMonth(year, month);
+    const endAd   = bsToAd(year, month, lastDay);
+    if (endAd) endAd.setUTCDate(endAd.getUTCDate() + 1); // exclusive end
+
+    return { $gte: startAd, $lt: endAd };
   }
+  // Fallback for AD years
   return { $gte: new Date(Date.UTC(year, month - 1, 1)), $lt: new Date(Date.UTC(year, month, 1)) };
 }
 

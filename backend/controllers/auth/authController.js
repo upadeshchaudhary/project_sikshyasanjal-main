@@ -195,46 +195,6 @@ exports.verifyOtp = async (req, res) => {
 };
 
 // ════════════════════════════════════════════════════════════════════════════════
-// POST /api/auth/parent/login — Parent password login
-// ════════════════════════════════════════════════════════════════════════════════
-exports.parentsLogin = async (req, res) => {
-  try {
-    const { phone, password } = req.body;
-
-    if (!phone || !password) {
-      return res.status(400).json({ success: false, message: "Phone and password are required." });
-    }
-
-    const user    = await User.findOne({ phone, role: "parent" }).select("+passwordHash");
-    const INVALID = { success: false, message: "Incorrect phone number or password." };
-
-    if (!user || !user.passwordHash) return res.status(401).json(INVALID);
-
-    const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) return res.status(401).json(INVALID);
-
-    if (user.isDisabled) {
-      return res.status(403).json({ success: false, message: "Your account has been disabled. Contact the school administrator." });
-    }
-
-    user.lastLogin = new Date();
-    await user.save();
-
-    const populatedUser = await User.findById(user._id).populate("childId", "name class rollNo").lean();
-    const school        = await School.findOne().lean();
-
-    res.json({
-      success: true,
-      token:   signToken(user),
-      user:    userShape(populatedUser),
-      school:  school ? schoolShape(school) : null,
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: "Login failed. Please try again." });
-  }
-};
-
-// ════════════════════════════════════════════════════════════════════════════════
 // GET /api/auth/me — Restore session from JWT
 // ════════════════════════════════════════════════════════════════════════════════
 exports.getMe = async (req, res) => {
