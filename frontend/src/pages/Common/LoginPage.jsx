@@ -1,5 +1,5 @@
 // LoginPage.jsx - Unified login flow for all roles (Admin, Teacher, Parent).
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useApp } from "../../context/AppContext";
 import axios from "axios";
@@ -66,7 +66,6 @@ export default function LoginPage() {
   const [phone,         setPhone]        = useState("");
   const [otp,           setOtp]          = useState("");
   const [showPass,      setShowPass]     = useState(false);
-  const [parentMode,    setParentMode]   = useState("otp");
   const [otpSent,       setOtpSent]      = useState(false);
   const [otpToken,      setOtpToken]     = useState("");
   const [loading,       setLoading]      = useState(false);
@@ -74,15 +73,14 @@ export default function LoginPage() {
   const [otpCountdown,  setOtpCountdown] = useState(0);
   const [preSchoolInfo, setPreSchoolInfo] = useState(null);
 
-  const activeRole = ROLES.find((r) => r.key === selectedRole);
+  const activeRole = useMemo(() => ROLES.find((r) => r.key === selectedRole), [selectedRole]);
 
-  // ── Fetch school info on mount ─────────────────────────────────────────────
   useEffect(() => {
     axios.get("/auth/school")
       .then(res => {
         if (res.data.success) setPreSchoolInfo(res.data.school);
       })
-      .catch(() => { /* ignore, will show default brand */ });
+      .catch(() => { /* ignore */ });
   }, []);
 
   useEffect(() => {
@@ -211,7 +209,6 @@ export default function LoginPage() {
           <FormStep
             role={activeRole}
             schoolInfo={preSchoolInfo || school}
-            parentMode={parentMode}   setParentMode={setParentMode}
             otpSent={otpSent}         otpCountdown={otpCountdown}
             email={email}             setEmail={setEmail}
             password={password}       setPassword={setPassword}
@@ -275,7 +272,6 @@ function RoleStep({ onSelect }) {
 
 function FormStep({
   role, schoolInfo,
-  parentMode, setParentMode,
   otpSent, otpCountdown,
   email, setEmail,
   password, setPassword,
@@ -318,40 +314,19 @@ function FormStep({
         </div>
       )}
 
+      {/* Parent Specific Fields */}
       {isParent && (
-        <Field label="Phone Number" error={errors.phone}>
-          <div style={{ ...s.inputWrap, borderColor: errors.phone ? "#EF4444" : "#E8EAED" }}>
-            <span style={{ ...s.inputIconWrap, fontSize: 12, color: "#374151", fontWeight: 600 }}>+977</span>
-            <input
-              style={s.input} type="tel" placeholder="98XXXXXXXX" maxLength={10}
-              value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-            />
-          </div>
-        </Field>
-      )}
+        <div style={{ marginBottom: 16 }}>
+          <Field label="Phone Number" error={errors.phone}>
+            <div style={{ ...s.inputWrap, borderColor: errors.phone ? "#EF4444" : "#E8EAED" }}>
+              <span style={{ ...s.inputIconWrap, fontSize: 12, color: "#374151", fontWeight: 600 }}>+977</span>
+              <input
+                style={s.input} type="tel" placeholder="98XXXXXXXX" maxLength={10}
+                value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+              />
+            </div>
+          </Field>
 
-      {!isParent && (
-        <Field label="Password" error={errors.password}>
-          <div style={{ ...s.inputWrap, borderColor: errors.password ? "#EF4444" : "#E8EAED" }}>
-            <span style={s.inputIconWrap}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
-            </span>
-            <input
-              style={s.input} type={showPass ? "text" : "password"} placeholder="Enter your password"
-              value={password} onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && onSubmit()}
-            />
-            <button onClick={() => setShowPass(!showPass)} style={s.eyeBtn} type="button">
-              {showPass ? <EyeOff size={14} color="#9CA3AF" /> : <Eye size={14} color="#9CA3AF" />}
-            </button>
-          </div>
-        </Field>
-      )}
-
-      {isParent && (
-        <>
           {!otpSent ? (
             <ActionButton color={role.color} loading={loading} onClick={onSendOtp}>Generate OTP</ActionButton>
           ) : (
@@ -377,12 +352,48 @@ function FormStep({
               </div>
             </>
           )}
-        </>
+        </div>
       )}
 
+      {/* Staff (Admin/Teacher) Specific Fields */}
       {!isParent && (
-        <div style={{ marginTop: 16 }}>
-          <ActionButton color={role.color} loading={loading} onClick={onSubmit}>Sign In</ActionButton>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <Field label="Email Address" error={errors.email}>
+            <div style={{ ...s.inputWrap, borderColor: errors.email ? "#EF4444" : "#E8EAED" }}>
+              <span style={s.inputIconWrap}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+                </svg>
+              </span>
+              <input
+                style={s.input} type="email" placeholder="you@example.com"
+                value={email} onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && onSubmit()}
+              />
+            </div>
+          </Field>
+
+          <Field label="Password" error={errors.password}>
+            <div style={{ ...s.inputWrap, borderColor: errors.password ? "#EF4444" : "#E8EAED" }}>
+              <span style={s.inputIconWrap}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+              </span>
+              <input
+                style={s.input} type={showPass ? "text" : "password"} placeholder="Enter your password"
+                value={password} onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && onSubmit()}
+              />
+              <button onClick={() => setShowPass(!showPass)} style={s.eyeBtn} type="button">
+                {showPass ? <EyeOff size={14} color="#9CA3AF" /> : <Eye size={14} color="#9CA3AF" />}
+              </button>
+            </div>
+          </Field>
+
+          <div style={{ marginTop: 6 }}>
+            <ActionButton color={role.color} loading={loading} onClick={onSubmit}>Sign In</ActionButton>
+          </div>
         </div>
       )}
     </div>
@@ -474,14 +485,6 @@ const s = {
     background: "none", cursor: "pointer", display: "flex", alignItems: "center",
     justifyContent: "center", color: "#6B7280", flexShrink: 0,
   },
-  toggleRow: { display: "flex", background: "#F4F4F8", borderRadius: 10, padding: 3, marginBottom: 16, gap: 3 },
-  toggleBtn: {
-    flex: 1, padding: "8px 0", border: "none", borderRadius: 8,
-    fontSize: 12, fontWeight: 600, cursor: "pointer",
-    background: "transparent", color: "#8B8FA8", transition: "all 0.18s",
-    fontFamily: "'Sora', sans-serif",
-  },
-  toggleActive: (color) => ({ background: "#FFFFFF", color, boxShadow: "0 1px 4px rgba(0,0,0,0.1)" }),
   fieldGroup: { marginBottom: 14 },
   label: { display: "block", fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 5 },
   inputWrap: {
