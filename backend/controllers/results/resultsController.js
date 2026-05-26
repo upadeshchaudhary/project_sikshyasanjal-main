@@ -107,6 +107,19 @@ exports.uploadResult = async (req, res) => {
     if (!cls?.trim())      return res.status(400).json({ success: false, message: "Class is required." });
     if (!Array.isArray(subjects) || subjects.length === 0) return res.status(400).json({ success: false, message: "At least one subject is required." });
 
+    const user = await User.findById(userId).lean();
+
+    if (role === "teacher") {
+      if (user?.assignedClasses?.length > 0 && !user.assignedClasses.includes(cls.trim())) {
+        return res.status(403).json({ success: false, message: "You can only upload results for your assigned classes." });
+      }
+      // Ensure teacher only uploads their assigned subject
+      const unauthorizedSubjects = subjects.filter(s => s.subject?.trim().toLowerCase() !== user.subject?.toLowerCase());
+      if (unauthorizedSubjects.length > 0) {
+        return res.status(403).json({ success: false, message: `You are only authorized to upload marks for your subject: ${user.subject}.` });
+      }
+    }
+
     const subjectErrors = [];
     for (let i = 0; i < subjects.length; i++) {
       const s = subjects[i];
@@ -119,45 +132,48 @@ exports.uploadResult = async (req, res) => {
     }
     if (subjectErrors.length > 0) return res.status(400).json({ success: false, message: "Subject validation failed.", errors: subjectErrors });
 
-    if (role === "teacher") {
-      const teacher = await User.findById(userId).select("assignedClasses").lean();
-      if (teacher?.assignedClasses?.length > 0 && !teacher.assignedClasses.includes(cls.trim())) {
-        return res.status(403).json({ success: false, message: "You can only upload results for your assigned classes." });
-      }
-    }
-
     const studentDoc = await Student.findOne({ _id: student, class: cls.trim() }).lean();
     if (!studentDoc) return res.status(404).json({ success: false, message: "Student not found in this class." });
 
-    const existing = await ExamResult.findOne({ student, examName: examName.trim(), examYear: examYear.trim() }).lean();
-    if (existing) {
-      return res.status(409).json({ success: false, message: `A result for "${examName}" (${examYear}) already exists for this student. Use PUT to update it.`, existingId: existing._id });
+    let result = await ExamResult.findOne({ student, examName: examName.trim(), examYear: examYear.trim() });
+
+    if (result) {
+      if (role === "teacher" && result.isPublished) {
+        return res.status(403).json({ success: false, message: "Cannot modify a published result. Contact administrator." });
+      }
+
+      // Update or Add subjects
+      subjects.forEach(newSub => {
+        const idx = result.subjects.findIndex(s => s.subject.toLowerCase() === newSub.subject.trim().toLowerCase());
+        if (idx !== -1) {
+          result.subjects[idx].marksObtained = Number(newSub.marksObtained);
+          result.subjects[idx].fullMarks     = Number(newSub.fullMarks);
+        } else {
+          result.subjects.push({
+            subject:       newSub.subject.trim(),
+            marksObtained: Number(newSub.marksObtained),
+            fullMarks:     Number(newSub.fullMarks)
+          });
+        }
+      });
+      await result.save();
+    } else {
+      // Create new record
+      const enrichedSubjects = subjects.map(s => ({
+        subject:       s.subject.trim(),
+        marksObtained: Number(s.marksObtained),
+        fullMarks:     Number(s.fullMarks)
+      }));
+
+      result = await ExamResult.create({
+        student, class: cls.trim(), examName: examName.trim(), examYear: examYear.trim(),
+        subjects: enrichedSubjects, uploadedBy: userId, isPublished: false,
+      });
     }
 
-    let totalObtained = 0, totalFull = 0;
-    const enrichedSubjects = subjects.map((s) => {
-      const obtained = Number(s.marksObtained);
-      const full     = Number(s.fullMarks);
-      const pct      = Math.round((obtained / full) * 100 * 10) / 10;
-      const { grade, gpa } = calcGrade(pct);
-      totalObtained += obtained;
-      totalFull     += full;
-      return { subject: s.subject.trim(), marksObtained: obtained, fullMarks: full, percentage: pct, grade, gpa, isPassing: pct >= 35 };
-    });
-
-    const overallPct  = Math.round((totalObtained / totalFull) * 100 * 10) / 10;
-    const { grade: overallGrade, gpa: overallGpa } = calcGrade(overallPct);
-
-    const result = await ExamResult.create({
-      student, class: cls.trim(), examName: examName.trim(), examYear: examYear.trim(),
-      subjects: enrichedSubjects, totalMarks: totalObtained, totalFullMarks: totalFull,
-      overallPercentage: overallPct, overallGrade, overallGpa, uploadedBy: userId, isPublished: false,
-    });
-
     await result.populate([{ path: "student", select: "name rollNo class" }, { path: "uploadedBy", select: "name" }]);
-    res.status(201).json({ success: true, result });
+    res.status(result.isNew ? 201 : 200).json({ success: true, result });
   } catch (err) {
-    if (err.code === 11000) return res.status(409).json({ success: false, message: "A result for this student and exam already exists." });
     res.status(400).json({ success: false, message: err.message });
   }
 };
@@ -168,37 +184,62 @@ exports.updateResult = async (req, res) => {
     if (!isValidId(req.params.id)) return res.status(400).json({ success: false, message: "Invalid result ID." });
 
     const { role, userId } = req.user;
-    const existing = await ExamResult.findById(req.params.id).lean();
+    const existing = await ExamResult.findById(req.params.id);
     if (!existing) return res.status(404).json({ success: false, message: "Result not found." });
 
-    if (role === "teacher" && existing.uploadedBy?.toString() !== userId.toString()) {
-      return res.status(403).json({ success: false, message: "You can only update results that you uploaded." });
-    }
-    if (existing.isPublished && role === "teacher") {
-      return res.status(403).json({ success: false, message: "Published results can only be edited by an administrator." });
+    const user = await User.findById(userId).lean();
+
+    if (role === "teacher") {
+      if (user?.assignedClasses?.length > 0 && !user.assignedClasses.includes(existing.class)) {
+        return res.status(403).json({ success: false, message: "You can only edit results for your assigned classes." });
+      }
+      if (existing.isPublished) {
+        return res.status(403).json({ success: false, message: "Published results can only be edited by an administrator." });
+      }
     }
 
     const { subjects } = req.body;
     if (!Array.isArray(subjects) || subjects.length === 0) return res.status(400).json({ success: false, message: "Subjects array is required for update." });
 
-    let totalObtained = 0, totalFull = 0;
-    const enrichedSubjects = subjects.map((s) => {
-      const obtained = Number(s.marksObtained);
-      const full     = Number(s.fullMarks);
-      const pct      = Math.round((obtained / full) * 100 * 10) / 10;
-      const { grade, gpa } = calcGrade(pct);
-      totalObtained += obtained;
-      totalFull     += full;
-      return { subject: s.subject?.trim() || "", marksObtained: obtained, fullMarks: full, percentage: pct, grade, gpa, isPassing: pct >= 35 };
-    });
+    if (role === "teacher") {
+      // Teachers can ONLY update their own subject
+      const teacherSubject = user.subject?.toLowerCase();
+      
+      // 1. Ensure the request doesn't try to add/modify other subjects
+      const unauthorizedChanges = subjects.filter(s => s.subject?.trim().toLowerCase() !== teacherSubject);
+      if (unauthorizedChanges.length > 0) {
+        return res.status(403).json({ success: false, message: `You are only authorized to modify your subject: ${user.subject}.` });
+      }
 
-    const overallPct = Math.round((totalObtained / totalFull) * 100 * 10) / 10;
-    const { grade: overallGrade, gpa: overallGpa } = calcGrade(overallPct);
+      // 2. Merge teacher's changes into the existing subjects array
+      subjects.forEach(newSub => {
+        const idx = existing.subjects.findIndex(s => s.subject.toLowerCase() === teacherSubject);
+        if (idx !== -1) {
+          existing.subjects[idx].marksObtained = Number(newSub.marksObtained);
+          existing.subjects[idx].fullMarks     = Number(newSub.fullMarks);
+        } else {
+          existing.subjects.push({
+            subject:       newSub.subject.trim(),
+            marksObtained: Number(newSub.marksObtained),
+            fullMarks:     Number(newSub.fullMarks)
+          });
+        }
+      });
+      await existing.save();
+    } else {
+      // Admin: Overwrite whole array
+      existing.subjects = subjects.map(s => ({
+        subject:       s.subject.trim(),
+        marksObtained: Number(s.marksObtained),
+        fullMarks:     Number(s.fullMarks)
+      }));
+      await existing.save();
+    }
 
-    const result = await ExamResult.findByIdAndUpdate(req.params.id, {
-      $set: { subjects: enrichedSubjects, totalMarks: totalObtained, totalFullMarks: totalFull, overallPercentage: overallPct, overallGrade, overallGpa },
-    }, { new: true, runValidators: true })
-      .populate("student", "name rollNo class").populate("uploadedBy", "name").lean();
+    const result = await ExamResult.findById(req.params.id)
+      .populate("student", "name rollNo class")
+      .populate("uploadedBy", "name")
+      .lean();
 
     res.json({ success: true, result });
   } catch (err) {
