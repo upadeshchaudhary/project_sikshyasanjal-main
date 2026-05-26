@@ -58,7 +58,7 @@ export default function ParentDashboard({ user }) {
       <div className="page-content">
         <div className="page-header">
           <div className="page-header-left">
-            <h1 className="page-title">{getGreeting()}, {firstName} 👋</h1>
+            <h1 className="page-title">{getGreeting()}, {firstName}</h1>
             <p className="page-subtitle">
               Viewing: <strong>{childName}</strong>
               {childClass && childClass !== "—" && (

@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useRef  } from "react";
 import Topbar from "../../components/Topbar";
-import { Plus, Search, Pencil, Trash2, X, Eye, Users, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { Plus, Trash2, X, AlertCircle, Pin, Lock, RefreshCw } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import toast from "react-hot-toast";
 import axios from "axios";
 
-const CATEGORIES = ["exam","holiday","event","urgent","general"];
-const catColors  = { exam:"tag-blue", holiday:"tag-green", event:"tag-purple", urgent:"tag-red", general:"tag-gray" };
+const CATEGORIES = ["exam","holiday","event","urgent","general","meeting"];
+const catColors  = { exam:"tag-blue", holiday:"tag-green", event:"tag-purple", urgent:"tag-red", general:"tag-gray", meeting:"tag-amber" };
 
 function Skeleton({ height = 20, width = "100%", radius = 6, style = {} }) {
   return (

@@ -83,7 +83,7 @@ export default function AdminDashboard({ user }) {
         <div className="page-header">
           <div className="page-header-left">
             <h1 className="page-title">
-              {getGreeting()}, {firstName} 👋
+              {getGreeting()}, {firstName}
             </h1>
             <p className="page-subtitle">
               Here's what's happening at your school today.

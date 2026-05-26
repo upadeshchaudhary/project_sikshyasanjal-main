@@ -86,7 +86,7 @@ export default function Sidebar() {
 
   const nav        = navByRole[currentUser?.role] || [];
   const isCollapsed = settings.sidebarCollapsed;
-  const isDark      = settings.theme === "dark";
+
 
   // ── Close mobile sidebar on route change ───────────────────────────────────
   useEffect(() => {
@@ -243,29 +243,6 @@ export default function Sidebar() {
         {/* ── Footer ────────────────────────────────────────────────────────── */}
         <div className="sidebar-footer">
 
-          {/* ── Theme toggle ──────────────────────────────────────────────── */}
-          <div style={themeToggleWrapStyle(isCollapsed)}>
-            <button
-              onClick={() => updateSetting("theme", "light")}
-              style={themeSegBtnStyle(!isDark)}
-              title="Light mode"
-              aria-label="Light mode"
-              aria-pressed={!isDark}
-            >
-              <Sun size={13} />
-              {!isCollapsed && <span style={{ fontSize: 11, fontWeight: 600 }}>Light</span>}
-            </button>
-            <button
-              onClick={() => updateSetting("theme", "dark")}
-              style={themeSegBtnStyle(isDark)}
-              title="Dark mode"
-              aria-label="Dark mode"
-              aria-pressed={isDark}
-            >
-              <Moon size={13} />
-              {!isCollapsed && <span style={{ fontSize: 11, fontWeight: 600 }}>Dark</span>}
-            </button>
-          </div>
 
           {/* Settings — admin only */}
           {currentUser?.role === "admin" && (
