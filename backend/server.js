@@ -96,6 +96,7 @@ app.use("/api", require("./routes/results/resultsRoutes"));
 app.use("/api", require("./routes/routine/routineRoutes"));
 app.use("/api", require("./routes/search/searchRoutes"));
 app.use("/api", require("./routes/settings/settingsRoutes"));
+app.use("/api", require("./routes/enquiry/enquiryRoutes"));
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get("/api/health", (_req, res) =>

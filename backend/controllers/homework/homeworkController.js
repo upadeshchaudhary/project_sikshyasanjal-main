@@ -97,9 +97,16 @@ exports.createHomework = async (req, res) => {
     if (missing.length > 0) return res.status(400).json({ success: false, message: `Missing required fields: ${missing.join(", ")}.` });
 
     if (role === "teacher") {
-      const teacher = await User.findById(userId).select("assignedClasses").lean();
+      const teacher = await User.findById(userId).select("assignedClasses subject").lean();
+      
+      // Check assigned classes
       if (teacher?.assignedClasses?.length > 0 && !teacher.assignedClasses.includes(cls.trim())) {
         return res.status(403).json({ success: false, message: "You can only post homework for your assigned classes." });
+      }
+
+      // Check assigned subject
+      if (teacher?.subject && subject.trim().toLowerCase() !== teacher.subject.trim().toLowerCase()) {
+        return res.status(403).json({ success: false, message: `You can only post homework for your assigned subject: ${teacher.subject}.` });
       }
     }
 
@@ -125,11 +132,22 @@ exports.updateHomework = async (req, res) => {
     const existing = await Homework.findById(req.params.id).lean();
     if (!existing) return res.status(404).json({ success: false, message: "Homework not found." });
 
-    if (role === "teacher" && existing.postedBy.toString() !== userId.toString()) {
-      return res.status(403).json({ success: false, message: "You can only edit homework that you posted." });
-    }
-
     const updates = pickFields(req.body);
+
+    if (role === "teacher") {
+      // 1. Ensure they only edit their own posts
+      if (existing.postedBy.toString() !== userId.toString()) {
+        return res.status(403).json({ success: false, message: "You can only edit homework that you posted." });
+      }
+
+      // 2. If changing subject, ensure it matches their assigned subject
+      if (updates.subject) {
+        const teacher = await User.findById(userId).select("subject").lean();
+        if (teacher?.subject && updates.subject.trim().toLowerCase() !== teacher.subject.trim().toLowerCase()) {
+          return res.status(403).json({ success: false, message: `You can only set homework for your assigned subject: ${teacher.subject}.` });
+        }
+      }
+    }
     if (updates.dueDate) {
       const due = new Date(updates.dueDate);
       if (isNaN(due.getTime())) return res.status(400).json({ success: false, message: "Invalid due date." });

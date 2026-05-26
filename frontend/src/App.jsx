@@ -17,6 +17,7 @@ import CalendarPage from "./pages/Common/CalendarPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import "./index.css";
 import LoginPage from "./pages/Common/LoginPage";
+import LandingPage from "./pages/Common/LandingPage";
 
 // ─── Role-based route guard ───────────────────────────────────────────────────
 // allowedRoles: array of roles that can access this route
@@ -43,12 +44,12 @@ function AppShell() {
     );
   }
 
-  // Not logged in → only the login route is accessible
+  // Not logged in → only the login route and landing page are accessible
   if (!currentUser) {
     return (
       <Routes>
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/" element={<LoginPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );

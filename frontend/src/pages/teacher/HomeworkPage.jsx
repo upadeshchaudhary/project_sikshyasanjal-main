@@ -73,8 +73,19 @@ function Field({ label, error, children }) {
 
 // ── Homework modal (Add / Edit) ───────────────────────────────────────────────
 function HomeworkModal({ hw, classes, onSave, onClose, saving }) {
+  const { currentUser } = useApp();
+  const isTeacher = currentUser?.role === "teacher";
   const isEdit = !!hw;
-  const empty  = { title: "", subject: "", class: classes[0] || "", description: "", dueDate: "", dueDateBs: "", priority: "medium" };
+
+  const empty  = {
+    title: "",
+    subject: isTeacher ? (currentUser.subject || "") : "",
+    class: classes[0] || "",
+    description: "",
+    dueDate: "",
+    dueDateBs: "",
+    priority: "medium"
+  };
   const [form,   setForm]   = useState(isEdit ? { ...empty, ...hw } : empty);
   const [errors, setErrors] = useState({});
 
@@ -136,7 +147,8 @@ function HomeworkModal({ hw, classes, onSave, onClose, saving }) {
             <Field label="Subject *" error={errors.subject}>
               <input className={`form-input ${errors.subject ? "error" : ""}`}
                 placeholder="e.g. Mathematics"
-                value={form.subject} onChange={e => set("subject", e.target.value)} />
+                value={form.subject} onChange={e => set("subject", e.target.value)}
+                disabled={isTeacher && !!currentUser.subject} />
             </Field>
             <Field label="Class *" error={errors.class}>
               <select className={`form-select ${errors.class ? "error" : ""}`}

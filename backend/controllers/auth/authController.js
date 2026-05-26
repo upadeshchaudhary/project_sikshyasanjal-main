@@ -28,6 +28,8 @@ const userShape = (user) => {
     email:      user.email      || null,
     phone:      user.phone      || null,
     avatar:     user.avatar     || null,
+    subject:    user.subject    || null,
+    assignedClasses: user.assignedClasses || [],
     childId:    hasChildData ? user.childId._id   : (user.childId    || null),
     childName:  hasChildData ? user.childId.name  : (user.childName  || null),
     childClass: hasChildData ? user.childId.class : (user.childClass || null),
