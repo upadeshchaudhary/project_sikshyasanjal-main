@@ -477,7 +477,14 @@ export default function HomeworkPage() {
   const handleAdd = async (form) => {
     setSaving(true);
     try {
-      await axios.post("/homework", form);
+      const cleanedForm = {
+        ...form,
+        title: form.title.trim(),
+        subject: form.subject.trim(),
+        class: form.class.trim(),
+        description: form.description?.trim() || "",
+      };
+      await axios.post("/homework", cleanedForm);
       toast.success("Homework posted.");
       setAddModal(false);
       fetchHomework();
@@ -492,7 +499,14 @@ export default function HomeworkPage() {
   const handleEdit = async (form) => {
     setSaving(true);
     try {
-      await axios.put(`/homework/${editModal._id}`, form);
+      const cleanedForm = {
+        ...form,
+        title: form.title.trim(),
+        subject: form.subject.trim(),
+        class: form.class.trim(),
+        description: form.description?.trim() || "",
+      };
+      await axios.put(`/homework/${editModal._id}`, cleanedForm);
       toast.success("Homework updated.");
       setEditModal(null);
       fetchHomework();

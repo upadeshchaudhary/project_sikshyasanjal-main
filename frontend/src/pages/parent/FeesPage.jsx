@@ -115,13 +115,14 @@ function PaymentModal({ fee, onClose, onSaved }) {
       const paid    = Number(form.paidAmount);
       const newPaid = (fee.paidAmount || 0) + paid;
       const status  = newPaid >= fee.amount ? "paid" : "partially_paid";
-      await axios.put(`/fees/${fee._id}`, {
+      const cleanedForm = {
         paidAmount:    newPaid,
-        paymentMethod: form.paymentMethod,
+        paymentMethod: form.paymentMethod.trim(),
         paidDateBs:    form.paidDateBs.trim(),
-        paidDate:      form.paidDate,
+        paidDate:      form.paidDate.trim(),
         status,
-      });
+      };
+      await axios.put(`/fees/${fee._id}`, cleanedForm);
       toast.success(`Payment of NPR ${paid.toLocaleString()} recorded.`);
       onSaved();
     } catch (err) {
@@ -334,7 +335,12 @@ function AddFeeModal({ classes, onClose, onSaved }) {
     if (!validate()) return;
     setSaving(true);
     try {
-      await axios.post("/fees", { ...form, amount: Number(form.amount) });
+      const cleanedForm = {
+        ...form,
+        amount: Number(form.amount),
+        dueDateBs: form.dueDateBs.trim(),
+      };
+      await axios.post("/fees", cleanedForm);
       toast.success("Fee record created.");
       onSaved();
     } catch (err) {

@@ -99,21 +99,46 @@ const LandingPage = () => {
   }, []);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    let { name, value } = e.target;
+    
+    // Format inputs as they're typed
+    if (name === "firstName" || name === "lastName") {
+      value = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+    } else if (name === "email") {
+      value = value.toLowerCase();
+    }
+    
+    setFormData({ ...formData, [name]: value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (submitting) return;
 
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.type || !formData.message) {
-      toast.error("Please fill all fields.");
+    // Validation
+    const errors = [];
+    if (!formData.firstName?.trim()) errors.push("First name is required.");
+    if (!formData.lastName?.trim()) errors.push("Last name is required.");
+    if (!formData.email?.trim()) errors.push("Email address is required.");
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) errors.push("Enter a valid email address.");
+    if (!formData.type?.trim()) errors.push("Please select an enquiry type.");
+    if (!formData.message?.trim()) errors.push("Message is required.");
+
+    if (errors.length > 0) {
+      toast.error(errors[0]);
       return;
     }
 
     setSubmitting(true);
     try {
-      const { data } = await axios.post("/enquiry", formData);
+      const cleanedData = {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.trim().toLowerCase(),
+        type: formData.type.trim(),
+        message: formData.message.trim(),
+      };
+      const { data } = await axios.post("/enquiry", cleanedData);
       if (data.success) {
         toast.success("Enquiry submitted successfully!");
         setFormData({ firstName: "", lastName: "", email: "", type: "", message: "" });

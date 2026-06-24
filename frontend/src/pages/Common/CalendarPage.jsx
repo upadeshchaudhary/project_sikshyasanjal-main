@@ -153,7 +153,14 @@ function AddModal({ year, month, onClose, onSaved }) {
     if (!validate()) return;
     setSaving(true);
     try {
-      await axios.post("/calendar", { ...form, isHoliday: form.type === "holiday" || form.isHoliday });
+      const cleanedForm = {
+        ...form,
+        title: form.title.trim(),
+        startDateBs: form.startDateBs.trim(),
+        description: form.description?.trim() || "",
+        isHoliday: form.type === "holiday" || form.isHoliday
+      };
+      await axios.post("/calendar", cleanedForm);
       toast.success("Event added to calendar.");
       onSaved();
     } catch (err) { toast.error(err.response?.data?.message || "Failed to add event."); }

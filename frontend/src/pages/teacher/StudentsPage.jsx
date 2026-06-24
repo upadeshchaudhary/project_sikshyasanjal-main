@@ -249,7 +249,7 @@ function StudentModal({ student, classes, onSave, onClose, saving, isAdmin }) {
     if (!form.parentPhone?.trim()) {
       e.parentPhone = "Parent phone number is required.";
     } else if (!/^(98|97|96)\d{8}$/.test(form.parentPhone.trim())) {
-      e.phone = "Enter a valid Nepali mobile number (98/97/96XXXXXXXX).";
+      e.parentPhone = "Enter a valid Nepali mobile number (98/97/96XXXXXXXX).";
     }
     if (!form.address?.trim()) e.address = "Address is required.";
     
@@ -282,6 +282,7 @@ function StudentModal({ student, classes, onSave, onClose, saving, isAdmin }) {
       name: form.name.trim(),
       class: form.class.trim(),
       parentName: form.parentName?.trim() || "",
+      parentPhone: form.parentPhone?.trim() || "",
       address: form.address?.trim() || "",
       dob: form.dob,
       dobBs: form.dobBs?.trim() || "",

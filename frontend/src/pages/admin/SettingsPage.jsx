@@ -114,7 +114,10 @@ function ProfileTab({ currentUser }) {
     setSaving(true);
     try {
       const url = isTeacher ? "/teachers/me" : "/settings/profile";
-      const { data } = await axios.put(url, { name: form.name, phone: form.phone });
+      const { data } = await axios.put(url, { 
+        name: form.name.trim(),
+        phone: form.phone?.trim() || "",
+      });
       
       const updatedUser = isTeacher ? data.teacher : data.user;
       if (updatedUser) {
@@ -550,7 +553,11 @@ function SchoolTab({ settings, updateSetting }) {
     if (!validate()) return;
     setSaving(true);
     try {
-      await axios.put("/settings/school", form);
+      await axios.put("/settings/school", {
+        phone: form.phone.trim(),
+        email: form.email.trim().toLowerCase(),
+        address: form.address.trim(),
+      });
       toast.success("School settings updated.");
       setErrors({});
     } catch (err) {
@@ -595,7 +602,7 @@ function SchoolTab({ settings, updateSetting }) {
               style={{ width: 240, padding: "7px 12px", fontSize: 13 }}
               value={form.email}
               onChange={e => {
-                setForm(p => ({ ...p, email: e.target.value }));
+                setForm(p => ({ ...p, email: e.target.value.toLowerCase() }));
                 if (errors.email) setErrors(p => ({ ...p, email: "" }));
               }}
             />

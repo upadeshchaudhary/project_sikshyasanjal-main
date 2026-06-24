@@ -90,7 +90,12 @@ export default function NoticesPage() {
     if (!validate()) return;
     setSaving(true);
     try {
-      const { data } = await axios.post("/notices", form);
+      const cleanedForm = {
+        ...form,
+        title: form.title.trim(),
+        body: form.body.trim(),
+      };
+      const { data } = await axios.post("/notices", cleanedForm);
       setNotices(prev => [data.notice, ...prev]);
       toast.success("Notice posted!");
       setShowModal(false);

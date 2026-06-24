@@ -98,17 +98,18 @@ export default function LoginPage() {
 
   async function handleSendOtp() {
     const errs = {};
-    if (!isValidPhone(phone)) errs.phone = "Enter a valid Nepali mobile number (starts with 98/97/96)";
+    const trimmedPhone = phone.trim();
+    if (!isValidPhone(trimmedPhone)) errs.phone = "Enter a valid Nepali mobile number (starts with 98/97/96)";
     if (Object.keys(errs).length) return setErrors(errs);
 
     setLoading(true);
     setErrors({});
     try {
-      const { data } = await axios.post("/auth/parent/send-otp", { phone });
+      const { data } = await axios.post("/auth/parent/send-otp", { phone: trimmedPhone });
       setOtpToken(data.otpToken);
       setOtpSent(true);
       setOtpCountdown(300);
-      toast.success(data.message || `OTP generated for +977-${phone}`);
+      toast.success(data.message || `OTP generated for +977-${trimmedPhone}`);
     } catch (err) {
       const msg = err.response?.data?.message || "Failed to send OTP. Try again.";
       if (err.response?.status === 429) {
@@ -130,8 +131,10 @@ export default function LoginPage() {
       if (!otpSent)             errs.otp = "Send OTP first";
       else if (otp.length < 6)  errs.otp = "Enter the 6-digit OTP";
     } else {
-      if (!isValidEmail(email))   errs.email = "Enter a valid email address";
-      if (!password)              errs.password = "Password is required";
+      const trimmedEmail = email.trim().toLowerCase();
+      const trimmedPassword = password.trim();
+      if (!isValidEmail(trimmedEmail))   errs.email = "Enter a valid email address";
+      if (!trimmedPassword)              errs.password = "Password is required";
     }
 
     if (Object.keys(errs).length) return setErrors(errs);
@@ -140,9 +143,9 @@ export default function LoginPage() {
     try {
       let res;
       if (selectedRole === "parent") {
-        res = await axios.post("/auth/parent/verify-otp", { phone, otp, otpToken });
+        res = await axios.post("/auth/parent/verify-otp", { phone: phone.trim(), otp, otpToken });
       } else {
-        res = await axios.post("/auth/login", { email, password, role: selectedRole });
+        res = await axios.post("/auth/login", { email: email.trim().toLowerCase(), password: password.trim(), role: selectedRole });
       }
 
       const { token, user, school: schoolData } = res.data;
@@ -367,7 +370,7 @@ function FormStep({
               </span>
               <input
                 style={s.input} type="email" placeholder="you@example.com"
-                value={email} onChange={(e) => setEmail(e.target.value)}
+                value={email} onChange={(e) => setEmail(e.target.value.toLowerCase())}
                 onKeyDown={(e) => e.key === "Enter" && onSubmit()}
               />
             </div>
