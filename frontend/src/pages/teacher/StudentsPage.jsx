@@ -3,7 +3,7 @@ import Topbar from "../../components/Topbar";
 import { useApp } from "../../context/AppContext";
 import axios from "axios";
 import toast from "react-hot-toast";
-import { adToBs, bsToAd } from "../../utils/calendar";
+import { adToBs, bsToAd, validateBsDate, compareBsDates } from "../../utils/calendar";
 import {
   Plus, Search, Pencil, Trash2, X,
   Eye, Users, ChevronLeft, ChevronRight, CalendarDays
@@ -180,6 +180,61 @@ function StudentModal({ student, classes, onSave, onClose, saving, isAdmin }) {
     });
   };
 
+  const handleBsDateInput = (val, prevVal) => {
+    if (val.length <= prevVal.length) {
+      return val;
+    }
+    let clean = val.replace(/[^0-9-]/g, "");
+
+    // 1. Year formatting
+    if (/^\d{4}$/.test(clean)) {
+      clean += "-";
+    }
+
+    // 2. Month formatting
+    const monthPartSingleMatch = clean.match(/^(\d{4}-)([2-9])$/);
+    if (monthPartSingleMatch) {
+      clean = monthPartSingleMatch[1] + "0" + monthPartSingleMatch[2] + "-";
+    }
+    const monthPartDashMatch = clean.match(/^(\d{4}-)(\d)-$/);
+    if (monthPartDashMatch) {
+      clean = monthPartDashMatch[1] + "0" + monthPartDashMatch[2] + "-";
+    }
+    if (/^\d{4}-\d{2}$/.test(clean)) {
+      clean += "-";
+    }
+
+    // 3. Day formatting
+    const datePartSingleMatch = clean.match(/^(\d{4}-\d{2}-)([4-9])$/);
+    if (datePartSingleMatch) {
+      clean = datePartSingleMatch[1] + "0" + datePartSingleMatch[2];
+    }
+    const datePartDashMatch = clean.match(/^(\d{4}-\d{2}-)(\d)-$/);
+    if (datePartDashMatch) {
+      clean = datePartDashMatch[1] + "0" + datePartDashMatch[2];
+    }
+
+    if (clean.length > 10) {
+      clean = clean.substring(0, 10);
+    }
+    return clean;
+  };
+
+  const handleBsDateBlur = () => {
+    let val = form.dobBs || "";
+    if (!val) return;
+    const parts = val.split("-");
+    if (parts.length === 3) {
+      let [y, m, d] = parts;
+      if (y.length === 4 && /^\d+$/.test(y)) {
+        if (m.length === 1 && /^\d+$/.test(m)) m = "0" + m;
+        if (d.length === 1 && /^\d+$/.test(d)) d = "0" + d;
+        const formatted = `${y}-${m}-${d}`;
+        set("dobBs", formatted);
+      }
+    }
+  };
+
   const validate = () => {
     const e = {};
     if (!form.name?.trim())    e.name   = "Full name is required.";
@@ -197,11 +252,22 @@ function StudentModal({ student, classes, onSave, onClose, saving, isAdmin }) {
       e.phone = "Enter a valid Nepali mobile number (98/97/96XXXXXXXX).";
     }
     if (!form.address?.trim()) e.address = "Address is required.";
+    
     if (!form.dobBs?.trim()) {
       e.dobBs = "Date of birth is required.";
-    } else if (!/^\d{4}-\d{2}-\d{2}$/.test(form.dobBs.trim())) {
-      e.dobBs = "Date of birth must be in YYYY-MM-DD format.";
+    } else {
+      const check = validateBsDate(form.dobBs);
+      if (!check.valid) {
+        e.dobBs = check.error;
+      } else {
+        const todayAdStr = new Date().toISOString().split("T")[0];
+        const todayBsStr = adToBs(todayAdStr);
+        if (todayBsStr && compareBsDates(form.dobBs, todayBsStr) > 0) {
+          e.dobBs = "Date of birth cannot be in the future.";
+        }
+      }
     }
+    
     if (form.admissionYear && !/^\d{4}$/.test(form.admissionYear.trim())) {
       e.admissionYear = "Admission year must be a 4-digit BS year.";
     }
@@ -274,33 +340,51 @@ function StudentModal({ student, classes, onSave, onClose, saving, isAdmin }) {
             </Field>
           </div>
           <div className="form-row">
-          <Field label="Date of Birth (BS) *" error={errors.dobBs}>
-              <div style={{ display: "flex", gap: 6, alignItems: "stretch" }}>
+            <Field label="Date of Birth (BS) *" error={errors.dobBs}>
+              <div style={{ display: "flex", gap: "8px", position: "relative" }}>
                 <input
                   className={`form-input mono ${errors.dobBs ? "error" : ""}`}
                   placeholder="e.g. 2065-01-01"
                   value={form.dobBs}
-                  onChange={e => set("dobBs", e.target.value)}
+                  onChange={e => {
+                    const formatted = handleBsDateInput(e.target.value, form.dobBs || "");
+                    set("dobBs", formatted);
+                  }}
+                  onBlur={handleBsDateBlur}
                   style={{ flex: 1 }}
                 />
-                <div style={{ position: "relative", display: "flex" }}>
-                  <button
-                    type="button"
-                    className="btn btn-outline btn-sm"
-                    title="Pick date (AD) — auto-converts to BS"
-                    style={{ padding: "0 10px" }}
-                    onClick={() => datePickerRef.current?.showPicker()}
-                  >
-                    <CalendarDays size={14} />
-                  </button>
-                  <input
-                    ref={datePickerRef}
-                    type="date"
-                    style={{ position: "absolute", opacity: 0, width: 1, height: 1, pointerEvents: "none", top: 0, left: 0 }}
-                    value={form.dob || ""}
-                    onChange={e => set("dob", e.target.value)}
-                  />
-                </div>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  title="Choose from calendar"
+                  onClick={() => {
+                    if (datePickerRef.current) {
+                      if (datePickerRef.current.showPicker) {
+                        datePickerRef.current.showPicker();
+                      } else {
+                        datePickerRef.current.click();
+                      }
+                    }
+                  }}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "42px", height: "42px", padding: 0 }}
+                >
+                  <CalendarDays size={16} />
+                </button>
+                <input
+                  type="date"
+                  ref={datePickerRef}
+                  value={form.dob ? form.dob.substring(0, 10) : ""}
+                  onChange={e => set("dob", e.target.value)}
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    top: 0,
+                    width: "42px",
+                    height: "42px",
+                    opacity: 0,
+                    pointerEvents: "none",
+                  }}
+                />
               </div>
             </Field>
             <Field label="Batch / Admission Year (BS)" error={errors.admissionYear}>

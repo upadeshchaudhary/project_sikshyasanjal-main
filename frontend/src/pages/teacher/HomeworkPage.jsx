@@ -3,10 +3,10 @@ import Topbar from "../../components/Topbar";
 import { useApp } from "../../context/AppContext";
 import axios from "axios";
 import toast from "react-hot-toast";
-import { adToBs, bsToAd } from "../../utils/calendar";
+import { adToBs, bsToAd, validateBsDate, compareBsDates } from "../../utils/calendar";
 import {
   Plus, Search, Pencil, Trash2, X,
-  BookOpen, ChevronLeft, ChevronRight, Filter,
+  BookOpen, ChevronLeft, ChevronRight, Filter, Calendar
 } from "lucide-react";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -88,6 +88,7 @@ function HomeworkModal({ hw, classes, onSave, onClose, saving }) {
   };
   const [form,   setForm]   = useState(isEdit ? { ...empty, ...hw } : empty);
   const [errors, setErrors] = useState({});
+  const dateInputRef = useRef(null);
 
   useEffect(() => {
     const h = (e) => { if (e.key === "Escape") onClose(); };
@@ -120,12 +121,82 @@ function HomeworkModal({ hw, classes, onSave, onClose, saving }) {
     });
   };
 
+  const handleBsDateInput = (val, prevVal) => {
+    if (val.length <= prevVal.length) {
+      return val;
+    }
+    let clean = val.replace(/[^0-9-]/g, "");
+
+    // 1. Year formatting
+    if (/^\d{4}$/.test(clean)) {
+      clean += "-";
+    }
+
+    // 2. Month formatting
+    const monthPartSingleMatch = clean.match(/^(\d{4}-)([2-9])$/);
+    if (monthPartSingleMatch) {
+      clean = monthPartSingleMatch[1] + "0" + monthPartSingleMatch[2] + "-";
+    }
+    const monthPartDashMatch = clean.match(/^(\d{4}-)(\d)-$/);
+    if (monthPartDashMatch) {
+      clean = monthPartDashMatch[1] + "0" + monthPartDashMatch[2] + "-";
+    }
+    if (/^\d{4}-\d{2}$/.test(clean)) {
+      clean += "-";
+    }
+
+    // 3. Day formatting
+    const datePartSingleMatch = clean.match(/^(\d{4}-\d{2}-)([4-9])$/);
+    if (datePartSingleMatch) {
+      clean = datePartSingleMatch[1] + "0" + datePartSingleMatch[2];
+    }
+    const datePartDashMatch = clean.match(/^(\d{4}-\d{2}-)(\d)-$/);
+    if (datePartDashMatch) {
+      clean = datePartDashMatch[1] + "0" + datePartDashMatch[2];
+    }
+
+    if (clean.length > 10) {
+      clean = clean.substring(0, 10);
+    }
+    return clean;
+  };
+
+  const handleBsDateBlur = () => {
+    let val = form.dueDateBs || "";
+    if (!val) return;
+    const parts = val.split("-");
+    if (parts.length === 3) {
+      let [y, m, d] = parts;
+      if (y.length === 4 && /^\d+$/.test(y)) {
+        if (m.length === 1 && /^\d+$/.test(m)) m = "0" + m;
+        if (d.length === 1 && /^\d+$/.test(d)) d = "0" + d;
+        const formatted = `${y}-${m}-${d}`;
+        set("dueDateBs", formatted);
+      }
+    }
+  };
+
   const validate = () => {
     const e = {};
     if (!form.title?.trim())   e.title   = "Title is required.";
     if (!form.subject?.trim()) e.subject  = "Subject is required.";
     if (!form.class?.trim())   e.class    = "Class is required.";
-    if (!form.dueDateBs?.trim()) e.dueDateBs = "BS due date is required (e.g. 2081-05-20).";
+    
+    if (!form.dueDateBs?.trim()) {
+      e.dueDateBs = "BS due date is required (e.g. 2081-05-20).";
+    } else {
+      const check = validateBsDate(form.dueDateBs);
+      if (!check.valid) {
+        e.dueDateBs = check.error;
+      } else {
+        const todayAdStr = new Date().toISOString().split("T")[0];
+        const todayBsStr = adToBs(todayAdStr);
+        if (todayBsStr && compareBsDates(form.dueDateBs, todayBsStr) < 0) {
+          e.dueDateBs = "Due date cannot be in the past.";
+        }
+      }
+    }
+    
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -159,9 +230,49 @@ function HomeworkModal({ hw, classes, onSave, onClose, saving }) {
           </div>
           <div className="form-row">
             <Field label="Due Date (BS) *" error={errors.dueDateBs}>
-              <input className={`form-input mono ${errors.dueDateBs ? "error" : ""}`}
-                placeholder="e.g. 2081-05-20"
-                value={form.dueDateBs} onChange={e => set("dueDateBs", e.target.value)} />
+              <div style={{ display: "flex", gap: "8px", position: "relative" }}>
+                <input className={`form-input mono ${errors.dueDateBs ? "error" : ""}`}
+                  placeholder="e.g. 2081-05-20"
+                  value={form.dueDateBs}
+                  onChange={e => {
+                    const formatted = handleBsDateInput(e.target.value, form.dueDateBs || "");
+                    set("dueDateBs", formatted);
+                  }}
+                  onBlur={handleBsDateBlur}
+                  style={{ flex: 1 }} />
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  title="Choose from calendar"
+                  onClick={() => {
+                    if (dateInputRef.current) {
+                      if (dateInputRef.current.showPicker) {
+                        dateInputRef.current.showPicker();
+                      } else {
+                        dateInputRef.current.click();
+                      }
+                    }
+                  }}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "42px", height: "42px", padding: 0 }}
+                >
+                  <Calendar size={16} />
+                </button>
+                <input
+                  type="date"
+                  ref={dateInputRef}
+                  value={form.dueDate ? form.dueDate.substring(0, 10) : ""}
+                  onChange={e => set("dueDate", e.target.value)}
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    top: 0,
+                    width: "42px",
+                    height: "42px",
+                    opacity: 0,
+                    pointerEvents: "none",
+                  }}
+                />
+              </div>
             </Field>
             <Field label="Priority">
               <div style={{ display: "flex", gap: 8 }}>

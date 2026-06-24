@@ -188,3 +188,52 @@ export function getBsMonthName(month, nepali = false) {
   const names = nepali ? BS_MONTH_NAMES_NP : BS_MONTH_NAMES;
   return names[(month - 1)] || "";
 }
+
+/**
+ * Validate if a BS date string is a valid date
+ * @param {string} dateStr - "YYYY-MM-DD"
+ * @returns {{ valid: boolean, error?: string }}
+ */
+export function validateBsDate(dateStr) {
+  if (!dateStr) return { valid: false, error: "Date is required." };
+  
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    return { valid: false, error: "Format must be YYYY-MM-DD." };
+  }
+  
+  const year = parseInt(match[1], 10);
+  const month = parseInt(match[2], 10);
+  const day = parseInt(match[3], 10);
+  
+  if (year < 2078 || year > 2088) {
+    return { valid: false, error: "Year must be between 2078 and 2088 BS." };
+  }
+  
+  if (month < 1 || month > 12) {
+    return { valid: false, error: "Month must be between 01 and 12." };
+  }
+  
+  const maxDays = getDaysInBSMonth(year, month);
+  if (day < 1 || day > maxDays) {
+    const monthName = getBsMonthName(month) || `Month ${month}`;
+    return { valid: false, error: `${monthName} in ${year} only has ${maxDays} days.` };
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * Compare two BS date strings (format YYYY-MM-DD)
+ * @param {string} d1
+ * @param {string} d2
+ * @returns {number} negative if d1 < d2, 0 if equal, positive if d1 > d2
+ */
+export function compareBsDates(d1, d2) {
+  if (!d1 || !d2) return 0;
+  const [y1, m1, day1] = d1.split("-").map(Number);
+  const [y2, m2, day2] = d2.split("-").map(Number);
+  if (y1 !== y2) return y1 - y2;
+  if (m1 !== m2) return m1 - m2;
+  return day1 - day2;
+}

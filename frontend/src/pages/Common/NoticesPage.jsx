@@ -40,6 +40,7 @@ export default function NoticesPage() {
   const [loading,    setLoading]    = useState(true);
   const [saving,     setSaving]     = useState(false);
   const [form,       setForm]       = useState({ title:"", category:"general", body:"", isImportant:false });
+  const [errors,     setErrors]     = useState({});
 
   const fetchNotices = useCallback(async () => {
     setLoading(true);
@@ -76,8 +77,17 @@ export default function NoticesPage() {
     }
   };
 
+  const validate = () => {
+    const e = {};
+    if (!form.title?.trim()) e.title = "Notice title is required.";
+    if (!form.body?.trim())  e.body  = "Notice content is required.";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
   const handlePost = async (e) => {
     e.preventDefault();
+    if (!validate()) return;
     setSaving(true);
     try {
       const { data } = await axios.post("/notices", form);
@@ -85,6 +95,7 @@ export default function NoticesPage() {
       toast.success("Notice posted!");
       setShowModal(false);
       setForm({ title:"", category:"general", body:"", isImportant:false });
+      setErrors({});
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to post notice.");
     } finally {
@@ -172,19 +183,25 @@ export default function NoticesPage() {
               <div className="modal-title">Post New Notice</div>
               <button className="btn btn-ghost btn-sm" onClick={() => setShowModal(false)}><X size={16}/></button>
             </div>
-            <form onSubmit={handlePost}>
+            <form onSubmit={handlePost} noValidate>
               <div className="modal-body">
-                <Field label="Title *">
-                  <input className="form-input" required value={form.title} onChange={e => setForm(p=>({...p,title:e.target.value}))}/>
+                <Field label="Title *" error={errors.title}>
+                  <input className={`form-input ${errors.title ? "error" : ""}`} value={form.title} onChange={e => {
+                    setForm(p=>({...p,title:e.target.value}));
+                    if (errors.title) setErrors(p=>({...p,title:""}));
+                  }}/>
                 </Field>
                 <Field label="Category">
-                  <select className="form-input" value={form.category} onChange={e => setForm(p=>({...p,category:e.target.value}))}>
+                  <select className="form-select" value={form.category} onChange={e => setForm(p=>({...p,category:e.target.value}))}>
                     {CATEGORIES.map(c => <option key={c} value={c} style={{textTransform:"capitalize"}}>{c}</option>)}
                   </select>
                 </Field>
-                <Field label="Content *">
-                  <textarea className="form-input" rows={4} required value={form.body}
-                    onChange={e => setForm(p=>({...p,body:e.target.value}))}/>
+                <Field label="Content *" error={errors.body}>
+                  <textarea className={`form-input ${errors.body ? "error" : ""}`} rows={4} value={form.body}
+                    onChange={e => {
+                      setForm(p=>({...p,body:e.target.value}));
+                      if (errors.body) setErrors(p=>({...p,body:""}));
+                    }}/>
                 </Field>
                 <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", fontSize:13 }}>
                   <input type="checkbox" checked={form.isImportant}

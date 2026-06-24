@@ -4,7 +4,7 @@ import { useApp } from "../../context/AppContext";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { Plus, Search, Pencil, Trash2, X, Eye, Users, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
-import { BS_MONTH_NAMES, getDaysInBSMonth, getTodayBS, adToBs, bsToAd } from "../../utils/calendar";
+import { BS_MONTH_NAMES, getDaysInBSMonth, getTodayBS, adToBs, bsToAd, validateBsDate, compareBsDates } from "../../utils/calendar";
 
 const TYPE_COLORS = {
   holiday:  { tag: "tag-red",    bg: "#fee2e2", text: "#dc2626" },
@@ -58,6 +58,7 @@ function AddModal({ year, month, onClose, onSaved }) {
   const [form, setForm]     = useState({ title: "", startDateBs: `${year}-${String(month).padStart(2,"0")}-01`, startDate: bsToAd(`${year}-${String(month).padStart(2,"0")}-01`), type: "event", description: "", academicYear: `${year}-${String(year - 2056).padStart(2,"0")}`, isHoliday: false });
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const dateInputRef = useRef(null);
 
   const set = (k, v) => {
     let updates = { [k]: v };
@@ -78,11 +79,74 @@ function AddModal({ year, month, onClose, onSaved }) {
     });
   };
 
+  const handleBsDateInput = (val, prevVal) => {
+    if (val.length <= prevVal.length) {
+      return val;
+    }
+    let clean = val.replace(/[^0-9-]/g, "");
+
+    // 1. Year formatting
+    if (/^\d{4}$/.test(clean)) {
+      clean += "-";
+    }
+
+    // 2. Month formatting
+    const monthPartSingleMatch = clean.match(/^(\d{4}-)([2-9])$/);
+    if (monthPartSingleMatch) {
+      clean = monthPartSingleMatch[1] + "0" + monthPartSingleMatch[2] + "-";
+    }
+    const monthPartDashMatch = clean.match(/^(\d{4}-)(\d)-$/);
+    if (monthPartDashMatch) {
+      clean = monthPartDashMatch[1] + "0" + monthPartDashMatch[2] + "-";
+    }
+    if (/^\d{4}-\d{2}$/.test(clean)) {
+      clean += "-";
+    }
+
+    // 3. Day formatting
+    const datePartSingleMatch = clean.match(/^(\d{4}-\d{2}-)([4-9])$/);
+    if (datePartSingleMatch) {
+      clean = datePartSingleMatch[1] + "0" + datePartSingleMatch[2];
+    }
+    const datePartDashMatch = clean.match(/^(\d{4}-\d{2}-)(\d)-$/);
+    if (datePartDashMatch) {
+      clean = datePartDashMatch[1] + "0" + datePartDashMatch[2];
+    }
+
+    if (clean.length > 10) {
+      clean = clean.substring(0, 10);
+    }
+    return clean;
+  };
+
+  const handleBsDateBlur = () => {
+    let val = form.startDateBs || "";
+    if (!val) return;
+    const parts = val.split("-");
+    if (parts.length === 3) {
+      let [y, m, d] = parts;
+      if (y.length === 4 && /^\d+$/.test(y)) {
+        if (m.length === 1 && /^\d+$/.test(m)) m = "0" + m;
+        if (d.length === 1 && /^\d+$/.test(d)) d = "0" + d;
+        const formatted = `${y}-${m}-${d}`;
+        set("startDateBs", formatted);
+      }
+    }
+  };
+
   const validate = () => {
     const e = {};
-    if (!form.title?.trim())       e.title       = "Title is required.";
-    if (!form.startDateBs?.trim()) e.startDateBs = "BS date is required.";
-    setErrors(e); return Object.keys(e).length === 0;
+    if (!form.title?.trim()) e.title = "Title is required.";
+    if (!form.startDateBs?.trim()) {
+      e.startDateBs = "BS date is required.";
+    } else {
+      const check = validateBsDate(form.startDateBs);
+      if (!check.valid) {
+        e.startDateBs = check.error;
+      }
+    }
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
   const handleSave = async () => {
@@ -110,8 +174,51 @@ function AddModal({ year, month, onClose, onSaved }) {
           </Field>
           <div className="form-row">
             <Field label="Event Date (BS) *" error={errors.startDateBs}>
-              <input className={`form-input mono ${errors.startDateBs ? "error" : ""}`} placeholder="YYYY-MM-DD"
-                value={form.startDateBs} onChange={e => set("startDateBs", e.target.value)} />
+              <div style={{ display: "flex", gap: "8px", position: "relative" }}>
+                <input
+                  className={`form-input mono ${errors.startDateBs ? "error" : ""}`}
+                  placeholder="YYYY-MM-DD"
+                  value={form.startDateBs}
+                  onChange={e => {
+                    const formatted = handleBsDateInput(e.target.value, form.startDateBs || "");
+                    set("startDateBs", formatted);
+                  }}
+                  onBlur={handleBsDateBlur}
+                  style={{ flex: 1 }}
+                />
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  title="Choose from calendar"
+                  onClick={() => {
+                    if (dateInputRef.current) {
+                      if (dateInputRef.current.showPicker) {
+                        dateInputRef.current.showPicker();
+                      } else {
+                        dateInputRef.current.click();
+                      }
+                    }
+                  }}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "42px", height: "42px", padding: 0 }}
+                >
+                  <CalendarDays size={16} />
+                </button>
+                <input
+                  type="date"
+                  ref={dateInputRef}
+                  value={form.startDate ? form.startDate.substring(0, 10) : ""}
+                  onChange={e => set("startDate", e.target.value)}
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    top: 0,
+                    width: "42px",
+                    height: "42px",
+                    opacity: 0,
+                    pointerEvents: "none",
+                  }}
+                />
+              </div>
             </Field>
             <Field label="Academic Year (BS)">
               <input className="form-input mono" placeholder="e.g. 2081-82"

@@ -90,8 +90,27 @@ function ProfileTab({ currentUser }) {
   });
   const [showPhone, setShowPhone] = useState(false);
   const [saving, setSaving]       = useState(false);
+  const [errors, setErrors]       = useState({});
+
+  const validate = () => {
+    const e = {};
+    if (!form.name?.trim()) e.name = "Full name is required.";
+    if (!form.email?.trim()) {
+      e.email = "Email is required.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      e.email = "Enter a valid email address.";
+    }
+    if (form.phone?.trim()) {
+      if (!/^(98|97|96)\d{8}$/.test(form.phone.trim())) {
+        e.phone = "Enter a valid Nepali mobile number (10 digits starting with 98/97/96).";
+      }
+    }
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
 
   const handleSave = async () => {
+    if (!validate()) return;
     setSaving(true);
     try {
       const url = isTeacher ? "/teachers/me" : "/settings/profile";
@@ -103,6 +122,7 @@ function ProfileTab({ currentUser }) {
       }
       
       toast.success("Profile updated successfully.");
+      setErrors({});
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to update profile.");
     } finally {
@@ -127,40 +147,58 @@ function ProfileTab({ currentUser }) {
               <span className="tag tag-gray" style={{ fontSize: 10 }}>🔒 Locked</span>
             </div>
           ) : (
-            <input
-              className="form-input"
-              style={{ width: 220, padding: "7px 12px", fontSize: 13 }}
-              value={form.name}
-              onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-            />
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+              <input
+                className={`form-input ${errors.name ? "error" : ""}`}
+                style={{ width: 220, padding: "7px 12px", fontSize: 13 }}
+                value={form.name}
+                onChange={e => {
+                  setForm(p => ({ ...p, name: e.target.value }));
+                  if (errors.name) setErrors(p => ({ ...p, name: "" }));
+                }}
+              />
+              {errors.name && <span style={{ color: "var(--red)", fontSize: 11, fontWeight: 500 }}>{errors.name}</span>}
+            </div>
           )}
         </SettingRow>
 
         <SettingRow label="Email Address" desc="Used for login and notifications.">
-          <input
-            className="form-input"
-            style={{ width: 220, padding: "7px 12px", fontSize: 13 }}
-            value={form.email}
-            onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-          />
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+            <input
+              className={`form-input ${errors.email ? "error" : ""}`}
+              style={{ width: 220, padding: "7px 12px", fontSize: 13 }}
+              value={form.email}
+              onChange={e => {
+                setForm(p => ({ ...p, email: e.target.value }));
+                if (errors.email) setErrors(p => ({ ...p, email: "" }));
+              }}
+            />
+            {errors.email && <span style={{ color: "var(--red)", fontSize: 11, fontWeight: 500 }}>{errors.email}</span>}
+          </div>
         </SettingRow>
 
         <SettingRow label="Phone Number" desc="For OTP and emergency contact.">
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <input
-              className="form-input"
-              type={showPhone ? "text" : "password"}
-              style={{ width: 180, padding: "7px 12px", fontSize: 13 }}
-              value={form.phone}
-              onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
-            />
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => setShowPhone(v => !v)}
-              style={{ padding: "7px 9px" }}
-            >
-              {showPhone ? <EyeOff size={14} /> : <Eye size={14} />}
-            </button>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <input
+                className={`form-input ${errors.phone ? "error" : ""}`}
+                type={showPhone ? "text" : "password"}
+                style={{ width: 180, padding: "7px 12px", fontSize: 13 }}
+                value={form.phone}
+                onChange={e => {
+                  setForm(p => ({ ...p, phone: e.target.value.replace(/\D/g, "").substring(0, 10) }));
+                  if (errors.phone) setErrors(p => ({ ...p, phone: "" }));
+                }}
+              />
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setShowPhone(v => !v)}
+                style={{ padding: "7px 9px" }}
+              >
+                {showPhone ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            </div>
+            {errors.phone && <span style={{ color: "var(--red)", fontSize: 11, fontWeight: 500 }}>{errors.phone}</span>}
           </div>
         </SettingRow>
 
@@ -473,6 +511,7 @@ function SchoolTab({ settings, updateSetting }) {
   const [form, setForm]     = useState({ phone: "", email: "", address: "" });
   const [school, setSchool] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     axios.get("/settings")
@@ -488,11 +527,32 @@ function SchoolTab({ settings, updateSetting }) {
       .catch(() => {});
   }, []);
 
+  const validate = () => {
+    const e = {};
+    if (!form.phone?.trim()) {
+      e.phone = "School phone is required.";
+    } else if (!/^\d{7,10}$/.test(form.phone.trim())) {
+      e.phone = "Enter a valid phone number (7 to 10 digits).";
+    }
+    if (!form.email?.trim()) {
+      e.email = "School email is required.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      e.email = "Enter a valid email address.";
+    }
+    if (!form.address?.trim()) {
+      e.address = "School address is required.";
+    }
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
   const handleSave = async () => {
+    if (!validate()) return;
     setSaving(true);
     try {
       await axios.put("/settings/school", form);
       toast.success("School settings updated.");
+      setErrors({});
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to save school settings.");
     } finally {
@@ -515,28 +575,46 @@ function SchoolTab({ settings, updateSetting }) {
           </div>
         </SettingRow>
         <SettingRow label="School Phone">
-          <input
-            className="form-input"
-            style={{ width: 200, padding: "7px 12px", fontSize: 13 }}
-            value={form.phone}
-            onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
-          />
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+            <input
+              className={`form-input ${errors.phone ? "error" : ""}`}
+              style={{ width: 200, padding: "7px 12px", fontSize: 13 }}
+              value={form.phone}
+              onChange={e => {
+                setForm(p => ({ ...p, phone: e.target.value.replace(/\D/g, "").substring(0, 10) }));
+                if (errors.phone) setErrors(p => ({ ...p, phone: "" }));
+              }}
+            />
+            {errors.phone && <span style={{ color: "var(--red)", fontSize: 11, fontWeight: 500 }}>{errors.phone}</span>}
+          </div>
         </SettingRow>
         <SettingRow label="School Email">
-          <input
-            className="form-input"
-            style={{ width: 240, padding: "7px 12px", fontSize: 13 }}
-            value={form.email}
-            onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-          />
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+            <input
+              className={`form-input ${errors.email ? "error" : ""}`}
+              style={{ width: 240, padding: "7px 12px", fontSize: 13 }}
+              value={form.email}
+              onChange={e => {
+                setForm(p => ({ ...p, email: e.target.value }));
+                if (errors.email) setErrors(p => ({ ...p, email: "" }));
+              }}
+            />
+            {errors.email && <span style={{ color: "var(--red)", fontSize: 11, fontWeight: 500 }}>{errors.email}</span>}
+          </div>
         </SettingRow>
         <SettingRow label="School Address">
-          <input
-            className="form-input"
-            style={{ width: 280, padding: "7px 12px", fontSize: 13 }}
-            value={form.address}
-            onChange={e => setForm(p => ({ ...p, address: e.target.value }))}
-          />
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+            <input
+              className={`form-input ${errors.address ? "error" : ""}`}
+              style={{ width: 280, padding: "7px 12px", fontSize: 13 }}
+              value={form.address}
+              onChange={e => {
+                setForm(p => ({ ...p, address: e.target.value }));
+                if (errors.address) setErrors(p => ({ ...p, address: "" }));
+              }}
+            />
+            {errors.address && <span style={{ color: "var(--red)", fontSize: 11, fontWeight: 500 }}>{errors.address}</span>}
+          </div>
         </SettingRow>
         <div style={{ paddingTop: 14 }}>
           <button
