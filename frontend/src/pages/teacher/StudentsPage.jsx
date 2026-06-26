@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import { adToBs, bsToAd, validateBsDate, compareBsDates } from "../../utils/calendar";
 import {
   Plus, Search, Pencil, Trash2, X,
-  Eye, Users, ChevronLeft, ChevronRight, CalendarDays
+  Eye, Users, ChevronLeft, ChevronRight, CalendarDays, Lock, Unlock
 } from "lucide-react";
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
@@ -430,6 +430,7 @@ export default function StudentsPage() {
 
   const [search,       setSearch]       = useState("");
   const [classFilter,  setClassFilter]  = useState("all");
+  const [statusFilter, setStatusFilter] = useState("true");
   const [page,         setPage]         = useState(1);
   const LIMIT = 20;
 
@@ -453,6 +454,7 @@ export default function StudentsPage() {
       if (!isParent) {
         if (search.trim())          params.search = search.trim();
         if (classFilter !== "all")  params.class  = classFilter;
+        if (isAdmin)                params.isActive = statusFilter;
       }
       const res = await axios.get("/students", { params });
       setStudents(res.data.students || []);
@@ -462,10 +464,20 @@ export default function StudentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, classFilter, isParent]);
+  }, [page, search, classFilter, isParent, isAdmin, statusFilter]);
 
   useEffect(() => { fetchStudents(); }, [fetchStudents]);
-  useEffect(() => { setPage(1); }, [search, classFilter]);
+  useEffect(() => { setPage(1); }, [search, classFilter, statusFilter]);
+
+  const handleToggleStatus = async (student) => {
+    try {
+      const { data } = await axios.patch(`/students/${student._id}/toggle-status`);
+      toast.success(data.message || `${student.name}'s status toggled.`);
+      fetchStudents();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to toggle status.");
+    }
+  };
 
   const handleAdd = async (form) => {
     setSaving(true);
@@ -556,6 +568,17 @@ export default function StudentsPage() {
               <option value="all">All Classes</option>
               {classes.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
+            {isAdmin && (
+              <select
+                className="form-select" style={{ width: "auto" }}
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+              >
+                <option value="true">Active Only</option>
+                <option value="false">Disabled Only</option>
+                <option value="all">All Statuses</option>
+              </select>
+            )}
             {!loading && (
               <span className="tag tag-blue">{total} result{total !== 1 ? "s" : ""}</span>
             )}
@@ -587,7 +610,12 @@ export default function StudentsPage() {
                 : students.map(s => (
                     <tr key={s._id}>
                       <td><span className="mono tag tag-gray">{s.rollNo}</span></td>
-                      <td style={{ fontWeight: 500, color: "var(--text)" }}>{s.name}</td>
+                      <td style={{ fontWeight: 500, color: "var(--text)" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          {s.name}
+                          {!s.isActive && <span className="tag tag-red" style={{ fontSize: 9 }}>Disabled</span>}
+                        </div>
+                      </td>
                       <td><span className="tag tag-blue">{s.class}</span></td>
                       <td>
                         <span className={`tag ${s.gender?.toLowerCase() === "female" ? "tag-purple" : s.gender?.toLowerCase() === "other" ? "tag-teal" : "tag-blue"}`}>
@@ -612,6 +640,14 @@ export default function StudentsPage() {
                           </button>
                           {isAdmin && (
                             <>
+                              <button
+                                className={`btn btn-sm ${!s.isActive ? "btn-danger" : "btn-success"}`}
+                                title={s.isActive ? "Click to Disable" : "Click to Enable"}
+                                onClick={() => handleToggleStatus(s)}
+                                style={{ fontSize: 10, fontWeight: 600, padding: "4px 8px", minWidth: 64, textAlign: "center" }}
+                              >
+                                {s.isActive ? "Enabled" : "Disabled"}
+                              </button>
                               <button
                                 className="btn btn-ghost btn-sm" title="Edit student"
                                 onClick={() => setEditModal(s)}

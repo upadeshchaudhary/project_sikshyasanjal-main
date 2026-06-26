@@ -4,7 +4,7 @@ import { useApp } from "../../context/AppContext";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { SUBJECTS } from "../../data/mockData";
-import { Plus, Search, Pencil, Trash2, X, Eye, Users, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, X, Eye, Users, ChevronLeft, ChevronRight, CalendarDays, Lock, Unlock } from "lucide-react";
 
 function Skeleton({ height = 16, width = "100%", radius = 6 }) {
   return <div className="skeleton" style={{ height, width, borderRadius: radius }} />;
@@ -208,6 +208,7 @@ export default function TeachersPage() {
   const [loading,  setLoading]  = useState(true);
   const [saving,   setSaving]   = useState(false);
   const [search,   setSearch]   = useState("");
+  const [statusFilter, setStatusFilter] = useState("false");
   const [viewModal,    setViewModal]    = useState(null);
   const [editModal,    setEditModal]    = useState(null);
   const [addModal,     setAddModal]     = useState(false);
@@ -232,13 +233,24 @@ export default function TeachersPage() {
     try {
       const params = {};
       if (search.trim()) params.search = search.trim();
+      if (isAdmin) params.isDisabled = statusFilter;
       const res = await axios.get("/teachers", { params });
       setTeachers(res.data.teachers || []);
     } catch { toast.error("Failed to load teachers."); }
     finally { setLoading(false); }
-  }, [search]);
+  }, [search, statusFilter, isAdmin]);
 
   useEffect(() => { fetch(); }, [fetch]);
+
+  const handleToggleStatus = async (teacher) => {
+    try {
+      const { data } = await axios.patch(`/teachers/${teacher._id}/toggle-status`);
+      toast.success(data.message || `${teacher.name}'s status updated.`);
+      fetch();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to toggle status.");
+    }
+  };
 
   const handleAdd = async (form) => {
     setSaving(true);
@@ -286,6 +298,18 @@ export default function TeachersPage() {
             <input placeholder="Search by name or subject…" value={search} onChange={e => setSearch(e.target.value)} />
             {search && <button onClick={() => setSearch("")} style={{ border: "none", background: "transparent", cursor: "pointer" }}><X size={12} /></button>}
           </div>
+          {isAdmin && (
+            <select
+              className="form-select"
+              style={{ width: "auto" }}
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+            >
+              <option value="false">Active Only</option>
+              <option value="true">Disabled Only</option>
+              <option value="all">All Statuses</option>
+            </select>
+          )}
         </div>
 
         <div className="grid-2">
@@ -334,6 +358,16 @@ export default function TeachersPage() {
                   <div style={{ display: "flex", gap: 4, flexDirection: "column", flexShrink: 0 }}>
                     <button className="btn btn-ghost btn-sm" title="View" onClick={() => setViewModal(t)}><Eye size={13} /></button>
                     {canEdit   && <button className="btn btn-ghost btn-sm" title="Edit"   onClick={() => setEditModal(t)}><Pencil size={13} /></button>}
+                    {isAdmin && (
+                      <button
+                        className={`btn btn-sm ${t.isDisabled ? "btn-danger" : "btn-success"}`}
+                        title={t.isDisabled ? "Click to Enable" : "Click to Disable"}
+                        onClick={() => handleToggleStatus(t)}
+                        style={{ fontSize: 10, fontWeight: 600, padding: "4px 8px", minWidth: 64, textAlign: "center" }}
+                      >
+                        {t.isDisabled ? "Disable" : "Enabled"}
+                      </button>
+                    )}
                     {canDelete && <button className="btn btn-danger btn-sm" title="Remove" onClick={() => setConfirmDel(t)}><Trash2 size={13} /></button>}
                   </div>
                 </div>

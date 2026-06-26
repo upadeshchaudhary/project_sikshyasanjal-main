@@ -24,8 +24,13 @@ exports.getStudents = async (req, res) => {
       return res.json({ success: true, students: child ? [child] : [], total: child ? 1 : 0, page: 1, totalPages: child ? 1 : 0 });
     }
 
-    const { class: cls, search, page = 1, limit = 20, sortBy = "class", sortDir = "asc", isActive = "true" } = req.query;
-    const filter = { isActive: isActive === "true" };
+        const { class: cls, search, page = 1, limit = 20, sortBy = "class", sortDir = "asc", isActive = "true" } = req.query;
+    const filter = {};
+    if (isActive === "true") {
+      filter.isActive = true;
+    } else if (isActive === "false") {
+      filter.isActive = false;
+    }
     if (cls) filter.class = cls.trim();
 
     if (search) {
@@ -239,5 +244,32 @@ exports.deleteStudent = async (req, res) => {
     res.json({ success: true, message: `${student.name} has been removed from the active student list.` });
   } catch (err) {
     res.status(500).json({ success: false, message: "Failed to remove student." });
+  }
+};
+
+// PATCH /api/students/:id/toggle-status (Admin only)
+exports.toggleStudentStatus = async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.status(400).json({ success: false, message: "Invalid student ID." });
+
+    const student = await Student.findById(req.params.id).lean();
+    if (!student) return res.status(404).json({ success: false, message: "Student not found." });
+
+    const newStatus = !student.isActive;
+    const updated = await Student.findByIdAndUpdate(req.params.id, { $set: { isActive: newStatus } }, { new: true }).lean();
+
+    // Toggle the linked Parent account if it exists
+    if (student.parentId) {
+      await User.findByIdAndUpdate(student.parentId, { $set: { isDisabled: !newStatus } });
+    }
+
+    res.json({
+      success: true,
+      student: updated,
+      isActive: newStatus,
+      message: `${student.name} has been ${newStatus ? "enabled" : "disabled"}.`
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Failed to toggle student status." });
   }
 };

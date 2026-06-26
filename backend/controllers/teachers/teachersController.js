@@ -52,7 +52,13 @@ exports.listOfAllTeachers = async (req, res) => {
       filter.$or = [{ name: { $regex: q, $options: "i" } }, { subject: { $regex: q, $options: "i" } }, { email: { $regex: q, $options: "i" } }];
     }
     if (req.query.subject?.trim()) filter.subject = { $regex: req.query.subject.trim(), $options: "i" };
-    filter.isDisabled = req.query.isDisabled !== undefined ? req.query.isDisabled === "true" : false;
+    if (req.query.isDisabled === "true") {
+      filter.isDisabled = true;
+    } else if (req.query.isDisabled === "all") {
+      // return both enabled and disabled teachers
+    } else {
+      filter.isDisabled = false;
+    }
 
     const page    = Math.max(1, parseInt(req.query.page,  10) || 1);
     const limit   = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
