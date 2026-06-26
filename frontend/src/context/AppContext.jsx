@@ -15,11 +15,13 @@ export const DEFAULT_SETTINGS = {
   notifyFees:         true,
   notifyResults:      true,
   notifyExamReminder: true,
+  notifySMS:          false,
+  notifyPush:         false,
   language:           "English",
   dateFormat:         "BS",
   theme:              "light",
   sidebarCollapsed:   false,
-  showPhone:          false,
+  hidePhone:          false,
   twoFactorOTP:       true,
   sessionTimeout:     "30",
   schoolName:         "SikshyaSanjal Academy",
@@ -27,6 +29,10 @@ export const DEFAULT_SETTINGS = {
   schoolAddress:      "Kathmandu, Nepal",
   feeReminderDays:    "7",
   maxOTPAttempts:     "5",
+  academicYear:       "2081-82",
+  defaultClass:       "10A",
+  paymentMethods:     ["Cash", "eSewa", "Khalti"],
+  feeCategories:      ["Tuition Fee", "Exam Fee", "Sports Fee", "Library Fee", "Computer Lab Fee"],
 };
 
 function applyAxiosAuth(token) {
@@ -157,6 +163,10 @@ export const AppProvider = ({ children }) => {
     currentUserRef.current = { ...currentUserRef.current, ...userData };
   }, []);
 
+  const updateSchool = useCallback((schoolData) => {
+    setSchool(prev => ({ ...prev, ...schoolData }));
+  }, []);
+
   // ── Logout ────────────────────────────────────────────────────────────────
   const handleLogout = useCallback(() => {
     clearStorage();
@@ -196,7 +206,7 @@ export const AppProvider = ({ children }) => {
   return (
     <AppContext.Provider value={{
       currentUser, school, authLoading, offline,
-      login, logout: handleLogout, updateUser,
+      login, logout: handleLogout, updateUser, updateSchool,
       notifications, markNotifRead, markAllRead,
       clearNotif, addNotification, unreadCount,
       settings, updateSetting,

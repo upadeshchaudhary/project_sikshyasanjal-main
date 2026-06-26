@@ -7,7 +7,7 @@ const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 const ADMIN_CREATE_FIELDS = ["name", "email", "phone", "subject", "assignedClasses", "qualification", "avatar"];
 const ADMIN_UPDATE_FIELDS = ["name", "email", "phone", "subject", "assignedClasses", "qualification", "avatar", "isDisabled"];
-const SELF_UPDATE_FIELDS  = ["name", "phone", "qualification", "avatar"];
+const SELF_UPDATE_FIELDS  = ["name", "phone", "qualification", "avatar", "email"];
 
 function pickFields(body, allowed) {
   return allowed.reduce((acc, key) => { if (body[key] !== undefined) acc[key] = body[key]; return acc; }, {});
@@ -137,6 +137,10 @@ exports.updateOwnProfile = async (req, res) => {
 
     res.json({ success: true, teacher: teacherShape(teacher), message: "Profile updated successfully." });
   } catch (err) {
+    if (err.code === 11000) {
+      const field = Object.keys(err.keyValue || {})[0];
+      return res.status(409).json({ success: false, message: `A user with this ${field} already exists.` });
+    }
     res.status(400).json({ success: false, message: err.message });
   }
 };

@@ -87,6 +87,7 @@ function ProfileTab({ currentUser }) {
     name:  currentUser?.name  || "",
     email: currentUser?.email || "",
     phone: currentUser?.phone || "",
+    qualification: isTeacher ? (currentUser?.qualification || "") : "",
   });
   const [showPhone, setShowPhone] = useState(false);
   const [saving, setSaving]       = useState(false);
@@ -100,7 +101,9 @@ function ProfileTab({ currentUser }) {
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
       e.email = "Enter a valid email address.";
     }
-    if (form.phone?.trim()) {
+    if (isParent && !form.phone?.trim()) {
+      e.phone = "Phone number is required for parent accounts.";
+    } else if (form.phone?.trim()) {
       if (!/^(98|97|96)\d{8}$/.test(form.phone.trim())) {
         e.phone = "Enter a valid Nepali mobile number (10 digits starting with 98/97/96).";
       }
@@ -114,10 +117,15 @@ function ProfileTab({ currentUser }) {
     setSaving(true);
     try {
       const url = isTeacher ? "/teachers/me" : "/settings/profile";
-      const { data } = await axios.put(url, { 
+      const payload = {
         name: form.name.trim(),
         phone: form.phone?.trim() || "",
-      });
+        email: form.email?.trim() || "",
+      };
+      if (isTeacher) {
+        payload.qualification = form.qualification.trim();
+      }
+      const { data } = await axios.put(url, payload);
       
       const updatedUser = isTeacher ? data.teacher : data.user;
       if (updatedUser) {
@@ -205,6 +213,19 @@ function ProfileTab({ currentUser }) {
           </div>
         </SettingRow>
 
+        {isTeacher && (
+          <SettingRow label="Qualification" desc="Your educational background.">
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+              <input
+                className="form-input"
+                style={{ width: 220, padding: "7px 12px", fontSize: 13 }}
+                value={form.qualification}
+                onChange={e => setForm(p => ({ ...p, qualification: e.target.value }))}
+              />
+            </div>
+          </SettingRow>
+        )}
+
         <div style={{ paddingTop: 16 }}>
           <button
             className="btn btn-primary btn-sm"
@@ -257,12 +278,12 @@ function NotificationsTab({ settings, updateSetting, role }) {
         </SettingRow>
       </Section>
 
-      <Section title="Delivery Channels" desc="How you receive notifications (SMS is disabled for demo).">
-        <SettingRow label="SMS Notifications" desc="Receive critical alerts via SMS to your registered phone.">
-          <Toggle value={false} onChange={() => toast("SMS requires admin configuration", { icon: "ℹ️" })} />
+      <Section title="Delivery Channels" desc="How you receive notifications.">
+        <SettingRow label="SMS Notifications" desc="Receive critical alerts via SMS to your registered phone (Demo).">
+          <Toggle value={settings.notifySMS} onChange={v => { updateSetting("notifySMS", v); toast.success(v ? "SMS notifications enabled (Demo)" : "SMS notifications disabled"); }} />
         </SettingRow>
-        <SettingRow label="Browser Push Notifications" desc="Web push notifications in your browser.">
-          <Toggle value={false} onChange={() => toast("Push notifications coming in next version.", { icon: "ℹ️" })} />
+        <SettingRow label="Browser Push Notifications" desc="Web push notifications in your browser (Demo).">
+          <Toggle value={settings.notifyPush} onChange={v => { updateSetting("notifyPush", v); toast.success(v ? "Browser push notifications enabled (Demo)" : "Browser push notifications disabled"); }} />
         </SettingRow>
       </Section>
     </>
@@ -392,8 +413,17 @@ function DisplayTab({ settings, updateSetting }) {
 function SecurityTab({ settings, updateSetting, role }) {
   const [changingPwd, setChangingPwd] = useState(false);
   const [pwd, setPwd] = useState({ current: "", next: "", confirm: "" });
-
   const [savingPwd, setSavingPwd] = useState(false);
+  const [sessions, setSessions] = useState([
+    { id: 1, device: "Chrome on Windows", location: "Dharan, Koshi",     time: "Now (this session)", current: true  },
+    { id: 2, device: "Mobile Browser",    location: "Biratnagar, Koshi", time: "2 hours ago",        current: false },
+  ]);
+
+  const handleRevokeSession = (id, device) => {
+    setSessions(prev => prev.filter(s => s.id !== id));
+    toast.success(`Session for ${device} revoked`);
+  };
+
   const handleSavePwd = async () => {
     if (!pwd.current) return toast.error("Enter your current password");
     if (pwd.next.length < 8) return toast.error("New password must be 8+ characters");
@@ -435,7 +465,7 @@ function SecurityTab({ settings, updateSetting, role }) {
         </SettingRow>
         {role !== "parent" && (
           <SettingRow label="Hide Phone Number" desc="Prevent other users from seeing your phone number.">
-            <Toggle value={settings.showPhone} onChange={v => updateSetting("showPhone", v)} />
+            <Toggle value={settings.hidePhone} onChange={v => { updateSetting("hidePhone", v); toast.success(v ? "Phone number hidden from others" : "Phone number visible to others"); }} />
           </SettingRow>
         )}
       </Section>
@@ -480,13 +510,10 @@ function SecurityTab({ settings, updateSetting, role }) {
 
       <Section title="Active Sessions" desc="Devices currently logged into your account.">
         <div style={{ padding: "8px 0" }}>
-          {[
-            { device: "Chrome on Windows", location: "Dharan, Koshi",     time: "Now (this session)", current: true  },
-            { device: "Mobile Browser",    location: "Biratnagar, Koshi", time: "2 hours ago",        current: false },
-          ].map((s, i) => (
-            <div key={i} style={{
+          {sessions.map((s, i) => (
+            <div key={s.id} style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "10px 0", borderBottom: i < 1 ? "1px solid var(--border)" : "none",
+              padding: "10px 0", borderBottom: i < sessions.length - 1 ? "1px solid var(--border)" : "none",
             }}>
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <div style={{ width: 34, height: 34, borderRadius: 9, background: "var(--canvas)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -499,10 +526,13 @@ function SecurityTab({ settings, updateSetting, role }) {
               </div>
               {s.current
                 ? <span className="tag tag-green" style={{ fontSize: 10 }}><Check size={10} /> Active</span>
-                : <button className="btn btn-outline btn-sm" style={{ fontSize: 11, padding: "4px 10px" }} onClick={() => toast.success("Session revoked")}>Revoke</button>
+                : <button className="btn btn-outline btn-sm" style={{ fontSize: 11, padding: "4px 10px" }} onClick={() => handleRevokeSession(s.id, s.device)}>Revoke</button>
               }
             </div>
           ))}
+          {sessions.length === 0 && (
+            <div style={{ textAlign: "center", padding: "16px 0", color: "var(--text-3)", fontSize: 13 }}>No active sessions</div>
+          )}
         </div>
       </Section>
     </>
@@ -511,6 +541,7 @@ function SecurityTab({ settings, updateSetting, role }) {
 
 // ─── School Config Tab (admin only) ──────────────────────────────────────────
 function SchoolTab({ settings, updateSetting }) {
+  const { updateSchool } = useApp();
   const [form, setForm]     = useState({ phone: "", email: "", address: "" });
   const [school, setSchool] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -553,13 +584,16 @@ function SchoolTab({ settings, updateSetting }) {
     if (!validate()) return;
     setSaving(true);
     try {
-      await axios.put("/settings/school", {
+      const { data } = await axios.put("/settings/school", {
         phone: form.phone.trim(),
         email: form.email.trim().toLowerCase(),
         address: form.address.trim(),
       });
       toast.success("School settings updated.");
       setErrors({});
+      if (data.school) {
+        updateSchool(data.school);
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to save school settings.");
     } finally {
@@ -660,6 +694,41 @@ function SchoolTab({ settings, updateSetting }) {
 
 // ─── Fee Settings Tab (admin only) ───────────────────────────────────────────
 function FeeTab({ settings, updateSetting }) {
+  const paymentMethods = settings.paymentMethods || ["Cash","eSewa","Khalti"];
+  const feeCategories = settings.feeCategories || ["Tuition Fee","Exam Fee","Sports Fee","Library Fee","Computer Lab Fee"];
+  const [newCat, setNewCat] = useState("");
+  const [showManage, setShowManage] = useState(false);
+
+  const handleToggleMethod = (method, isEnabled) => {
+    let nextMethods;
+    if (isEnabled) {
+      nextMethods = [...paymentMethods, method];
+    } else {
+      nextMethods = paymentMethods.filter(m => m !== method);
+    }
+    updateSetting("paymentMethods", nextMethods);
+    toast.success(`${method} ${isEnabled ? "enabled" : "disabled"}`);
+  };
+
+  const handleAddCategory = () => {
+    const trimmed = newCat.trim();
+    if (!trimmed) return;
+    if (feeCategories.includes(trimmed)) {
+      toast.error("Category already exists");
+      return;
+    }
+    const nextCategories = [...feeCategories, trimmed];
+    updateSetting("feeCategories", nextCategories);
+    setNewCat("");
+    toast.success(`Category "${trimmed}" added`);
+  };
+
+  const handleRemoveCategory = (cat) => {
+    const nextCategories = feeCategories.filter(c => c !== cat);
+    updateSetting("feeCategories", nextCategories);
+    toast.success(`Category "${cat}" removed`);
+  };
+
   return (
     <>
       <Section title="Fee Reminders" desc="Automatic notifications for fee dues.">
@@ -681,30 +750,68 @@ function FeeTab({ settings, updateSetting }) {
       </Section>
 
       <Section title="Payment Methods" desc="Accepted methods recorded in fee ledger.">
-        {["Cash","eSewa","Khalti","Bank Transfer","Cheque"].map(method => (
-          <SettingRow key={method} label={method}>
-            <Toggle value={["Cash","eSewa","Khalti"].includes(method)} onChange={() => toast(`${method} toggle coming soon`, { icon: "ℹ️" })} />
-          </SettingRow>
-        ))}
+        {["Cash","eSewa","Khalti","Bank Transfer","Cheque"].map(method => {
+          const isEnabled = paymentMethods.includes(method);
+          return (
+            <SettingRow key={method} label={method}>
+              <Toggle value={isEnabled} onChange={v => handleToggleMethod(method, v)} />
+            </SettingRow>
+          );
+        })}
       </Section>
 
       <Section title="Fee Categories" desc="Types of fees this school collects.">
-        <div style={{ paddingTop: 4 }}>
-          {["Tuition Fee","Exam Fee","Sports Fee","Library Fee","Computer Lab Fee"].map(cat => (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingTop: 4 }}>
+          {feeCategories.map(cat => (
             <div key={cat} style={{
               display: "inline-flex", alignItems: "center", gap: 6,
-              margin: "4px 6px 4px 0", padding: "4px 12px",
+              padding: "4px 12px",
               background: "var(--blue-pale)", color: "var(--blue)",
               borderRadius: 100, fontSize: 12, fontWeight: 500,
             }}>
-              <Check size={10} /> {cat}
+              <span>{cat}</span>
+              {showManage && (
+                <button
+                  onClick={() => handleRemoveCategory(cat)}
+                  style={{
+                    border: "none", background: "transparent", color: "var(--red)",
+                    cursor: "pointer", display: "flex", alignItems: "center", padding: 0,
+                    marginLeft: 4,
+                  }}
+                  title="Remove category"
+                >
+                  &times;
+                </button>
+              )}
             </div>
           ))}
         </div>
-        <div style={{ marginTop: 12 }}>
-          <button className="btn btn-outline btn-sm" onClick={() => toast("Fee category management coming soon", { icon: "ℹ️" })}>
-            Manage Categories
-          </button>
+        <div style={{ marginTop: 16 }}>
+          {!showManage ? (
+            <button className="btn btn-outline btn-sm" onClick={() => setShowManage(true)}>
+              Manage Categories
+            </button>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ display: "flex", gap: 8, maxWidth: 320 }}>
+                <input
+                  className="form-input"
+                  placeholder="New category name"
+                  value={newCat}
+                  onChange={e => setNewCat(e.target.value)}
+                  style={{ padding: "6px 12px", fontSize: 13 }}
+                />
+                <button className="btn btn-primary btn-sm" onClick={handleAddCategory}>
+                  Add
+                </button>
+              </div>
+              <div>
+                <button className="btn btn-ghost btn-sm" onClick={() => setShowManage(false)}>
+                  Done Managing
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </Section>
     </>

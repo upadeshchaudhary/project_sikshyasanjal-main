@@ -66,7 +66,7 @@ exports.updateSchoolSettings = async (req, res) => {
 exports.updateUserProfile = async (req, res) => {
   try {
     const { userId } = req.user;
-    const PROFILE_FIELDS = ["name", "phone", "avatar"];
+    const PROFILE_FIELDS = ["name", "phone", "avatar", "email"];
     const updates  = pickFields(req.body, PROFILE_FIELDS);
 
     if (req.body.newPassword) {
@@ -85,6 +85,10 @@ exports.updateUserProfile = async (req, res) => {
 
     res.json({ success: true, user, message: "Profile updated successfully." });
   } catch (err) {
+    if (err.code === 11000) {
+      const field = Object.keys(err.keyValue || {})[0];
+      return res.status(409).json({ success: false, message: `A user with this ${field} already exists.` });
+    }
     res.status(400).json({ success: false, message: err.message });
   }
 };
