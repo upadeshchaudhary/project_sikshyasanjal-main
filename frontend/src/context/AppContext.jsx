@@ -36,6 +36,73 @@ export const DEFAULT_SETTINGS = {
   feeCategories:      ["Tuition Fee", "Exam Fee", "Sports Fee", "Library Fee", "Computer Lab Fee"],
 };
 
+function getSeedNotifications(user) {
+  const role = user?.role || "parent";
+  const base = [
+    {
+      id: "notif-1",
+      type: "notice",
+      title: "New notice posted",
+      body: "The latest school notice is ready to review.",
+      time: "Just now",
+      read: false,
+      link: "/notices",
+    },
+    {
+      id: "notif-2",
+      type: "message",
+      title: "New message received",
+      body: "A parent or teacher sent a new message.",
+      time: "10 min ago",
+      read: false,
+      link: "/messages",
+    },
+  ];
+
+  if (role === "admin") {
+    return [
+      ...base,
+      {
+        id: "notif-3",
+        type: "student",
+        title: "Attendance summary ready",
+        body: "Review today's attendance overview for the school.",
+        time: "1 hour ago",
+        read: false,
+        link: "/attendance",
+      },
+    ];
+  }
+
+  if (role === "teacher") {
+    return [
+      ...base,
+      {
+        id: "notif-3",
+        type: "homework",
+        title: "Homework reminder",
+        body: "A new homework assignment was posted for your class.",
+        time: "1 hour ago",
+        read: false,
+        link: "/homework",
+      },
+    ];
+  }
+
+  return [
+    ...base,
+    {
+      id: "notif-3",
+      type: "fee",
+      title: "Fee reminder",
+      body: "Your next fee installment is approaching its due date.",
+      time: "2 hours ago",
+      read: false,
+      link: "/fees",
+    },
+  ];
+}
+
 function applyAxiosAuth(token) {
   axios.defaults.headers.common["Authorization"]   = `Bearer ${token}`;
 }
@@ -51,7 +118,14 @@ function clearStorage() {
 export const AppProvider = ({ children }) => {
   const [currentUser,   setCurrentUser]   = useState(null);
   const [school,        setSchool]        = useState(null);
-  const [notifications, setNotifications] = useState([]);
+  const [notifications, setNotifications] = useState(() => {
+    try {
+      const saved = localStorage.getItem("ss_notifications");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [settings,      setSettings]      = useState(DEFAULT_SETTINGS);
   const [authLoading,   setAuthLoading]   = useState(true);
   const [offline,       setOffline]       = useState(false);
@@ -119,6 +193,15 @@ export const AppProvider = ({ children }) => {
     restore();
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("ss_notifications", JSON.stringify(notifications));
+  }, [notifications]);
+
+  useEffect(() => {
+    if (!currentUser || notifications.length > 0) return;
+    setNotifications(getSeedNotifications(currentUser));
+  }, [currentUser, notifications.length]);
 
   useEffect(() => {
     const interceptor = axios.interceptors.response.use(
