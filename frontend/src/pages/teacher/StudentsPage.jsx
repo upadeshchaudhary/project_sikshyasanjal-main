@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Topbar from "../../components/Topbar";
 import { useApp } from "../../context/AppContext";
 import axios from "axios";
 import toast from "react-hot-toast";
+import BsDatePicker from "../../components/BsDatePicker";
 import { adToBs, bsToAd, validateBsDate, compareBsDates } from "../../utils/calendar";
 import {
   Plus, Search, Pencil, Trash2, X,
-  Eye, Users, ChevronLeft, ChevronRight, CalendarDays, Lock, Unlock
+  Eye, Users, ChevronLeft, ChevronRight, Lock, Unlock
 } from "lucide-react";
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
@@ -128,7 +129,6 @@ function Field({ label, error, children }) {
 // ── Add / Edit modal ──────────────────────────────────────────────────────────
 function StudentModal({ student, classes, onSave, onClose, saving, isAdmin }) {
   const isEdit = !!student;
-  const datePickerRef = useRef(null);
 
   const normalizeGender = (g) => {
     if (!g) return "Male";
@@ -354,36 +354,12 @@ function StudentModal({ student, classes, onSave, onClose, saving, isAdmin }) {
                   onBlur={handleBsDateBlur}
                   style={{ flex: 1 }}
                 />
-                <button
-                  type="button"
-                  className="btn btn-outline"
-                  title="Choose from calendar"
-                  onClick={() => {
-                    if (datePickerRef.current) {
-                      if (datePickerRef.current.showPicker) {
-                        datePickerRef.current.showPicker();
-                      } else {
-                        datePickerRef.current.click();
-                      }
-                    }
-                  }}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "42px", height: "42px", padding: 0 }}
-                >
-                  <CalendarDays size={16} />
-                </button>
-                <input
-                  type="date"
-                  ref={datePickerRef}
-                  value={form.dob ? form.dob.substring(0, 10) : ""}
-                  onChange={e => set("dob", e.target.value)}
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    top: 0,
-                    width: "42px",
-                    height: "42px",
-                    opacity: 0,
-                    pointerEvents: "none",
+                <BsDatePicker
+                  value={form.dobBs}
+                  onChange={val => {
+                    set("dobBs", val);
+                    const ad = bsToAd(val);
+                    if (ad) set("dob", ad);
                   }}
                 />
               </div>

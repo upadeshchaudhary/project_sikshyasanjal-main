@@ -4,7 +4,8 @@ import { useApp } from "../../context/AppContext";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { Plus, Search, Pencil, Trash2, X, Eye, Users, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
-import { BS_MONTH_NAMES, getDaysInBSMonth, getTodayBS, adToBs, bsToAd, validateBsDate, compareBsDates } from "../../utils/calendar";
+import BsDatePicker from "../../components/BsDatePicker";
+import { BS_MONTH_NAMES, getDaysInBSMonth, getTodayBS, adToBs, bsToAd, validateBsDate, compareBsDates, getCurrentAcademicYear } from "../../utils/calendar";
 
 const TYPE_COLORS = {
   holiday:  { tag: "tag-red",    bg: "#fee2e2", text: "#dc2626" },
@@ -55,7 +56,7 @@ function AddModal({ year, month, onClose, onSaved }) {
     return () => document.removeEventListener("keydown", h);
   }, [onClose]);
 
-  const [form, setForm]     = useState({ title: "", startDateBs: `${year}-${String(month).padStart(2,"0")}-01`, startDate: bsToAd(`${year}-${String(month).padStart(2,"0")}-01`), type: "event", description: "", academicYear: `${year}-${String(year - 2056).padStart(2,"0")}`, isHoliday: false });
+  const [form, setForm]     = useState({ title: "", startDateBs: `${year}-${String(month).padStart(2,"0")}-01`, startDate: bsToAd(`${year}-${String(month).padStart(2,"0")}-01`), type: "event", description: "", academicYear: getCurrentAcademicYear(), isHoliday: false });
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const dateInputRef = useRef(null);
@@ -193,43 +194,19 @@ function AddModal({ year, month, onClose, onSaved }) {
                   onBlur={handleBsDateBlur}
                   style={{ flex: 1 }}
                 />
-                <button
-                  type="button"
-                  className="btn btn-outline"
-                  title="Choose from calendar"
-                  onClick={() => {
-                    if (dateInputRef.current) {
-                      if (dateInputRef.current.showPicker) {
-                        dateInputRef.current.showPicker();
-                      } else {
-                        dateInputRef.current.click();
-                      }
-                    }
-                  }}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "42px", height: "42px", padding: 0 }}
-                >
-                  <CalendarDays size={16} />
-                </button>
-                <input
-                  type="date"
-                  ref={dateInputRef}
-                  value={form.startDate ? form.startDate.substring(0, 10) : ""}
-                  onChange={e => set("startDate", e.target.value)}
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    top: 0,
-                    width: "42px",
-                    height: "42px",
-                    opacity: 0,
-                    pointerEvents: "none",
+                <BsDatePicker
+                  value={form.startDateBs}
+                  onChange={val => {
+                    set("startDateBs", val);
+                    const ad = bsToAd(val);
+                    if (ad) set("startDate", ad);
                   }}
                 />
               </div>
             </Field>
             <Field label="Academic Year (BS)">
-              <input className="form-input mono" placeholder="e.g. 2081-82"
-                value={form.academicYear} onChange={e => set("academicYear", e.target.value)} />
+              <input className="form-input mono" disabled
+                value={form.academicYear} />
             </Field>
           </div>
           <div className="form-row">

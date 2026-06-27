@@ -96,10 +96,27 @@ function adToBs(adDateInput) {
   return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
+function getCurrentAcademicYear() {
+  const bsDate = adToBs(new Date());
+  if (bsDate) {
+    return bsDate.split("-")[0];
+  }
+  // Fallback calculation in case of invalid date or epoch bounds
+  const now = new Date();
+  const adYear = now.getFullYear();
+  const adMon = now.getMonth() + 1;
+  const adDay = now.getDate();
+  const bsYear = (adMon > 4 || (adMon === 4 && adDay >= 14))
+    ? adYear + 57
+    : adYear + 56;
+  return String(bsYear);
+}
+
 module.exports = {
   bsToAd,
   adToBs,
   getDaysInBsMonth,
   bsTotalDays,
   BS_MONTH_NAMES,
+  getCurrentAcademicYear,
 };

@@ -21,6 +21,7 @@ const FeeRecord        = require("../models/FeeRecordSchema");
 const Message          = require("../models/MessageSchema");
 const ClassRoutine     = require("../models/ClassRoutineSchema");
 const AcademicCalendar = require("../models/AcademicCalendarSchema");
+const { getCurrentAcademicYear } = require("../utils/calendar");
 
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/sikshyasanjal";
 
@@ -111,7 +112,7 @@ async function seed() {
       address:      "Dharan-5, Sunsari, Koshi Province",
       phone:        "025520123",
       email:        "info@saraswati.edu.np",
-      academicYear: "2081-82",
+      academicYear: getCurrentAcademicYear(),
       classes:      ["9A", "9B", "10A", "10B"],
       subjects:     [
         "English", "Nepali", "Maths", "Science",
@@ -412,7 +413,7 @@ async function seed() {
           paidDate:      paidAmount > 0 ? adDate(2025, 4, 10) : null,
           paidDateBs:    paidAmount > 0 ? bsDate(2082, 12, 27) : null,
           paymentMethod: paidAmount > 0 ? (r < 3 ? "cash" : "esewa") : null,
-          academicYear:  "2081-82",
+          academicYear:  getCurrentAcademicYear(),
           recordedBy:    admin._id,
         });
       }
@@ -466,7 +467,7 @@ async function seed() {
     await ClassRoutine.create({
       class: "10A",
       classTeacher: sunita._id,
-      academicYear: "2081-82",
+      academicYear: getCurrentAcademicYear(),
       monday:    buildDay([{ subject: "English", teacher: "Sunita Koirala", room: "101" }, { subject: "Maths", teacher: "Ram Bahadur Rai" }, { subject: "Science", teacher: "Sita Thapa" }, { subject: "Computer", teacher: "Arjun Shrestha" }, { subject: "Social Studies", teacher: "Bikash Limbu" }, { subject: "Nepali", teacher: "Kabita Gurung" }, { subject: "Account", teacher: "Gita Bhattarai" }]),
       tuesday:   buildDay([{ subject: "English", teacher: "Sunita Koirala" }, { subject: "Maths", teacher: "Ram Bahadur Rai" }, { subject: "Account", teacher: "Gita Bhattarai" }, { subject: "Nepali", teacher: "Kabita Gurung" }, { subject: "Computer", teacher: "Arjun Shrestha" }, { subject: "Science", teacher: "Sita Thapa" }, { subject: "Social Studies", teacher: "Bikash Limbu" }]),
       wednesday: buildDay([{ subject: "English", teacher: "Sunita Koirala" }, { subject: "Science", teacher: "Sita Thapa" }, { subject: "Maths", teacher: "Ram Bahadur Rai" }, { subject: "Account", teacher: "Gita Bhattarai" }, { subject: "English", teacher: "Sunita Koirala" }, { subject: "Optional Maths", teacher: "Pawan Tamang" }, { subject: "Computer", teacher: "Arjun Shrestha" }]),
@@ -486,7 +487,7 @@ async function seed() {
     ];
 
     await AcademicCalendar.insertMany(
-      calendarEvents.map(e => ({ ...e, academicYear: "2081-82", createdBy: admin._id }))
+      calendarEvents.map(e => ({ ...e, academicYear: getCurrentAcademicYear(), createdBy: admin._id }))
     );
     console.log(`📆 Calendar events created`);
 

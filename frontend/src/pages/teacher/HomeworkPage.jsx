@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback, useRef  } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Topbar from "../../components/Topbar";
 import { useApp } from "../../context/AppContext";
 import axios from "axios";
 import toast from "react-hot-toast";
+import BsDatePicker from "../../components/BsDatePicker";
 import { adToBs, bsToAd, validateBsDate, compareBsDates } from "../../utils/calendar";
 import {
   Plus, Search, Pencil, Trash2, X,
-  BookOpen, ChevronLeft, ChevronRight, Filter, Calendar
+  BookOpen, ChevronLeft, ChevronRight, Filter
 } from "lucide-react";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -88,7 +89,6 @@ function HomeworkModal({ hw, classes, onSave, onClose, saving }) {
   };
   const [form,   setForm]   = useState(isEdit ? { ...empty, ...hw } : empty);
   const [errors, setErrors] = useState({});
-  const dateInputRef = useRef(null);
 
   useEffect(() => {
     const h = (e) => { if (e.key === "Escape") onClose(); };
@@ -240,36 +240,12 @@ function HomeworkModal({ hw, classes, onSave, onClose, saving }) {
                   }}
                   onBlur={handleBsDateBlur}
                   style={{ flex: 1 }} />
-                <button
-                  type="button"
-                  className="btn btn-outline"
-                  title="Choose from calendar"
-                  onClick={() => {
-                    if (dateInputRef.current) {
-                      if (dateInputRef.current.showPicker) {
-                        dateInputRef.current.showPicker();
-                      } else {
-                        dateInputRef.current.click();
-                      }
-                    }
-                  }}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "42px", height: "42px", padding: 0 }}
-                >
-                  <Calendar size={16} />
-                </button>
-                <input
-                  type="date"
-                  ref={dateInputRef}
-                  value={form.dueDate ? form.dueDate.substring(0, 10) : ""}
-                  onChange={e => set("dueDate", e.target.value)}
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    top: 0,
-                    width: "42px",
-                    height: "42px",
-                    opacity: 0,
-                    pointerEvents: "none",
+                <BsDatePicker
+                  value={form.dueDateBs}
+                  onChange={val => {
+                    set("dueDateBs", val);
+                    const ad = bsToAd(val);
+                    if (ad) set("dueDate", ad);
                   }}
                 />
               </div>

@@ -295,17 +295,13 @@ function AcademicTab({ settings, updateSetting, role, currentUser }) {
   return (
     <>
       <Section title="Academic Year" desc="Current academic session settings.">
-        <SettingRow label="Academic Year" desc="The current year this dashboard is showing data for.">
-          <select
-            className="form-input"
-            style={{ width: 160, padding: "7px 12px", fontSize: 13 }}
-            value={settings.academicYear}
-            onChange={e => { updateSetting("academicYear", e.target.value); toast.success("Academic year updated"); }}
-          >
-            {["2080-81","2081-82","2082-83","2083-84"].map(y => (
-              <option key={y} value={y}>{y} BS</option>
-            ))}
-          </select>
+        <SettingRow label="Academic Year" desc="The current academic year is set automatically based on the calendar.">
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 13, color: "var(--text)", fontWeight: 500 }}>
+              {settings.academicYear} BS
+            </span>
+            <span className="tag tag-gray" style={{ fontSize: 10 }}>🔒 Auto-set</span>
+          </div>
         </SettingRow>
 
         {role === "parent" && (

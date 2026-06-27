@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
+import { getCurrentAcademicYear } from "../utils/calendar";
 
 const AppContext = createContext();
 
@@ -29,7 +30,7 @@ export const DEFAULT_SETTINGS = {
   schoolAddress:      "Kathmandu, Nepal",
   feeReminderDays:    "7",
   maxOTPAttempts:     "5",
-  academicYear:       "2081-82",
+  academicYear:       getCurrentAcademicYear(),
   defaultClass:       "10A",
   paymentMethods:     ["Cash", "eSewa", "Khalti"],
   feeCategories:      ["Tuition Fee", "Exam Fee", "Sports Fee", "Library Fee", "Computer Lab Fee"],
@@ -86,12 +87,14 @@ export const AppProvider = ({ children }) => {
         if (data.success && data.user && data.school) {
           setCurrentUser(data.user);
           currentUserRef.current = data.user;
-          setSchool(data.school);
+          setSchool({ ...data.school, academicYear: getCurrentAcademicYear() });
 
           try {
             const savedSettings = localStorage.getItem("ss_settings");
             if (savedSettings) {
-              setSettings(s => ({ ...s, ...JSON.parse(savedSettings) }));
+              const parsed = JSON.parse(savedSettings);
+              parsed.academicYear = getCurrentAcademicYear();
+              setSettings(s => ({ ...s, ...parsed }));
             }
           } catch { /* ignore corrupt settings */ }
         } else {
@@ -154,7 +157,7 @@ export const AppProvider = ({ children }) => {
     applyAxiosAuth(token);
     setCurrentUser(user);
     currentUserRef.current = user;
-    setSchool(schoolData);
+    setSchool(schoolData ? { ...schoolData, academicYear: getCurrentAcademicYear() } : null);
     setNotifications([]);
   }, []);
 
@@ -164,7 +167,7 @@ export const AppProvider = ({ children }) => {
   }, []);
 
   const updateSchool = useCallback((schoolData) => {
-    setSchool(prev => ({ ...prev, ...schoolData }));
+    setSchool(prev => ({ ...prev, ...schoolData, academicYear: getCurrentAcademicYear() }));
   }, []);
 
   // ── Logout ────────────────────────────────────────────────────────────────
@@ -193,6 +196,7 @@ export const AppProvider = ({ children }) => {
   const updateSetting = useCallback((key, value) => {
     setSettings(prev => {
       const next = { ...prev, [key]: value };
+      next.academicYear = getCurrentAcademicYear();
       localStorage.setItem("ss_settings", JSON.stringify(next));
       return next;
     });

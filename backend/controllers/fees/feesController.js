@@ -1,6 +1,7 @@
 // backend/controllers/fees/feesController.js
 const mongoose = require("mongoose");
 const { FeeRecord, User, Student } = require("../../models");
+const { getCurrentAcademicYear } = require("../../utils/calendar");
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -35,7 +36,7 @@ exports.getFees = async (req, res) => {
       const parent = await User.findById(userId).select("childId childName childClass").lean();
       if (!parent?.childId) return res.json({ success: true, records: [], total: 0 });
 
-      const records = await FeeRecord.find({ student: parent.childId })
+      const records = await FeeRecord.find({ student: parent.childId, academicYear: getCurrentAcademicYear() })
         .populate("student", "name class rollNo").sort({ dueDate: -1 }).lean();
       const outstanding = records.filter(r => r.status !== "paid").reduce((sum, r) => sum + (r.amount - (r.paidAmount || 0)), 0);
 
@@ -43,14 +44,13 @@ exports.getFees = async (req, res) => {
     }
 
     // Admin
-    const filter = {};
+    const filter = { academicYear: getCurrentAcademicYear() };
     if (req.query.student && isValidId(req.query.student)) filter.student = req.query.student;
     if (req.query.status) {
       if (!VALID_STATUSES.includes(req.query.status)) return res.status(400).json({ success: false, message: `Status must be one of: ${VALID_STATUSES.join(", ")}.` });
       filter.status = req.query.status;
     }
     if (req.query.class?.trim())        filter.class        = req.query.class.trim();
-    if (req.query.academicYear?.trim()) filter.academicYear = req.query.academicYear.trim();
     if (req.query.feeType?.trim()) {
       if (!VALID_FEE_TYPES.includes(req.query.feeType)) return res.status(400).json({ success: false, message: `feeType must be one of: ${VALID_FEE_TYPES.join(", ")}.` });
       filter.feeType = req.query.feeType.trim();
@@ -75,8 +75,7 @@ exports.getFees = async (req, res) => {
 // GET /api/fees/summary
 exports.getFeeSummary = async (req, res) => {
   try {
-    const matchFilter = {};
-    if (req.query.academicYear?.trim()) matchFilter.academicYear = req.query.academicYear.trim();
+    const matchFilter = { academicYear: getCurrentAcademicYear() };
 
     const [agg, statusCounts] = await Promise.all([
       FeeRecord.aggregate([{ $match: matchFilter }, { $group: { _id: null, totalAmount: { $sum: "$amount" }, totalPaid: { $sum: "$paidAmount" }, totalRecords: { $sum: 1 } } }]),
@@ -138,13 +137,13 @@ exports.getFeeRecord = async (req, res) => {
 exports.createFeeRecord = async (req, res) => {
   try {
     const { userId } = req.user;
-    const { student, amount, dueDate, academicYear, feeType } = req.body;
+    const { student, amount, dueDate, feeType } = req.body;
+    const academicYear = getCurrentAcademicYear();
 
     const missing = [];
     if (!student || !isValidId(student)) missing.push("student (valid ID)");
     if (!amount || Number(amount) <= 0)  missing.push("amount (positive number)");
     if (!dueDate)                        missing.push("dueDate");
-    if (!academicYear?.trim())           missing.push("academicYear");
     if (missing.length > 0) return res.status(400).json({ success: false, message: `Missing or invalid fields: ${missing.join(", ")}.` });
 
     if (feeType && !VALID_FEE_TYPES.includes(feeType)) return res.status(400).json({ success: false, message: `feeType must be one of: ${VALID_FEE_TYPES.join(", ")}.` });
@@ -154,6 +153,7 @@ exports.createFeeRecord = async (req, res) => {
 
     const fields = pickFields(req.body, CREATE_FIELDS);
     if (!fields.class) fields.class = studentDoc.class;
+    fields.academicYear = academicYear;
 
     const record = await FeeRecord.create({ ...fields, amount: Number(amount), paidAmount: 0, status: "pending", recordedBy: userId });
     await record.populate("student", "name class rollNo");

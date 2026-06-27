@@ -1,6 +1,7 @@
 // backend/controllers/routine/routineController.js
 const mongoose = require("mongoose");
 const { ClassRoutine, User } = require("../../models");
+const { getCurrentAcademicYear } = require("../../utils/calendar");
 
 const WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday"];
 
@@ -174,12 +175,11 @@ exports.getRoutines = async (req, res) => {
     if (role === "parent") {
       const parent  = await User.findById(userId).select("childClass").lean();
       if (!parent?.childClass) return res.json({ success: true, routines: [] });
-      const routine = await ClassRoutine.findOne({ class: parent.childClass }).lean();
+      const routine = await ClassRoutine.findOne({ class: parent.childClass, academicYear: getCurrentAcademicYear() }).lean();
       return res.json({ success: true, routines: routine ? [routine] : [] });
     }
 
-    const filter = {};
-    if (req.query.academicYear?.trim()) filter.academicYear = req.query.academicYear.trim();
+    const filter = { academicYear: getCurrentAcademicYear() };
     const routines = await ClassRoutine.find(filter).sort({ class: 1 }).lean();
     res.json({ success: true, routines });
   } catch (err) {
@@ -190,12 +190,12 @@ exports.getRoutines = async (req, res) => {
 // POST /api/routine/generate
 exports.createRoutine = async (req, res) => {
   try {
-    const { class: className, classTeacher, subjectTeacherMap, academicYear } = req.body;
+    const { class: className, classTeacher, subjectTeacherMap } = req.body;
+    const academicYear = getCurrentAcademicYear();
 
     if (!className?.trim())                             return res.status(400).json({ success: false, message: "Class name is required." });
     if (!classTeacher?.trim())                          return res.status(400).json({ success: false, message: "Class teacher name is required." });
     if (!subjectTeacherMap || typeof subjectTeacherMap !== "object") return res.status(400).json({ success: false, message: "subjectTeacherMap is required." });
-    if (!academicYear?.trim())                          return res.status(400).json({ success: false, message: "Academic year (BS) is required." });
 
     const classNum        = parseInt(className.replace(/[^0-9]/g, ""), 10);
     const requiredSubjects = getSubjectsForClass(className);
@@ -221,18 +221,18 @@ exports.createRoutine = async (req, res) => {
       return res.status(400).json({ success: false, message: `These teachers are not registered: ${missing.join(", ")}` });
     }
 
-    const existingWithSameTeacher = await ClassRoutine.findOne({ academicYear: academicYear.trim(), class: { $ne: className.trim() }, classTeacher }).lean();
+    const existingWithSameTeacher = await ClassRoutine.findOne({ academicYear, class: { $ne: className.trim() }, classTeacher }).lean();
     if (existingWithSameTeacher) {
       return res.status(409).json({ success: false, message: `"${classTeacher}" is already the class teacher of ${existingWithSameTeacher.class}.` });
     }
 
     const schedule  = generateRoutine(className.trim(), classTeacher.trim(), subjectTeacherMap);
-    const conflicts = await checkCrossClassConflicts(className.trim(), schedule, academicYear.trim());
+    const conflicts = await checkCrossClassConflicts(className.trim(), schedule, academicYear);
     if (conflicts.length > 0) return res.status(409).json({ success: false, message: "Teacher conflicts detected.", conflicts });
 
     const routine = await ClassRoutine.findOneAndUpdate(
-      { class: className.trim(), academicYear: academicYear.trim() },
-      { $set: { class: className.trim(), classTeacher: classTeacher.trim(), academicYear: academicYear.trim(), subjectTeacherMap, ...schedule, updatedBy: req.user.userId } },
+      { class: className.trim(), academicYear },
+      { $set: { class: className.trim(), classTeacher: classTeacher.trim(), academicYear, subjectTeacherMap, ...schedule, updatedBy: req.user.userId } },
       { upsert: true, new: true }
     );
 
@@ -255,7 +255,7 @@ exports.getRoutineByClass = async (req, res) => {
       }
     }
 
-    const routine = await ClassRoutine.findOne({ class: targetClass }).lean();
+    const routine = await ClassRoutine.findOne({ class: targetClass, academicYear: getCurrentAcademicYear() }).lean();
     if (!routine) return res.status(404).json({ success: false, message: `No routine found for class ${targetClass}.` });
 
     const clean = { ...routine };
@@ -273,11 +273,11 @@ exports.updateRoutine = async (req, res) => {
   try {
     const { role, userId } = req.user;
     const targetClass = req.params.class.trim();
-    const { schedule, classTeacher, academicYear } = req.body;
+    const { schedule, classTeacher } = req.body;
+    const academicYear = getCurrentAcademicYear();
 
     if (!schedule || typeof schedule !== "object") return res.status(400).json({ success: false, message: "schedule object is required." });
     if (!classTeacher?.trim()) return res.status(400).json({ success: false, message: "classTeacher is required." });
-    if (!academicYear?.trim()) return res.status(400).json({ success: false, message: "academicYear is required." });
 
     if (role === "teacher") {
       const teacher = await User.findById(userId).select("assignedClasses").lean();
@@ -292,17 +292,17 @@ exports.updateRoutine = async (req, res) => {
     const { valid, errors } = validateRoutine(sanitizedSchedule, targetClass, classTeacher.trim());
     if (!valid) return res.status(400).json({ success: false, message: "Routine validation failed.", errors });
 
-    const conflicts = await checkCrossClassConflicts(targetClass, sanitizedSchedule, academicYear.trim());
+    const conflicts = await checkCrossClassConflicts(targetClass, sanitizedSchedule, academicYear);
     if (conflicts.length > 0) return res.status(409).json({ success: false, message: "Teacher schedule conflicts detected:", conflicts });
 
-    const existingWithSameTeacher = await ClassRoutine.findOne({ academicYear: academicYear.trim(), class: { $ne: targetClass }, classTeacher: classTeacher.trim() }).lean();
+    const existingWithSameTeacher = await ClassRoutine.findOne({ academicYear, class: { $ne: targetClass }, classTeacher: classTeacher.trim() }).lean();
     if (existingWithSameTeacher) {
       return res.status(409).json({ success: false, message: `"${classTeacher}" is already the class teacher of ${existingWithSameTeacher.class}.` });
     }
 
     const routine = await ClassRoutine.findOneAndUpdate(
-      { class: targetClass, academicYear: academicYear.trim() },
-      { $set: { classTeacher: classTeacher.trim(), academicYear: academicYear.trim(), ...sanitizedSchedule, updatedBy: userId, saturday: undefined, sunday: undefined } },
+      { class: targetClass, academicYear },
+      { $set: { classTeacher: classTeacher.trim(), academicYear, ...sanitizedSchedule, updatedBy: userId, saturday: undefined, sunday: undefined } },
       { upsert: true, new: true }
     );
 
@@ -326,8 +326,7 @@ exports.getSubjectsForIndividualClass = async (req, res) => {
 exports.deleteRoutine = async (req, res) => {
   try {
     const targetClass = req.params.class.trim();
-    const filter      = { class: targetClass };
-    if (req.query.academicYear?.trim()) filter.academicYear = req.query.academicYear.trim();
+    const filter      = { class: targetClass, academicYear: getCurrentAcademicYear() };
 
     const result = await ClassRoutine.findOneAndDelete(filter);
     if (!result) return res.status(404).json({ success: false, message: `No routine found for class ${targetClass}.` });

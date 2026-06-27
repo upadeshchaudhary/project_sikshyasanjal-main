@@ -38,9 +38,12 @@ exports.getUpcomingCalendarEvents = async (req, res) => {
   }
 };
 
+const { getCurrentAcademicYear } = require("../../utils/calendar");
+
 exports.createCalendarEvent = async (req, res) => {
   try {
-    const event = await AcademicCalendar.create({ ...req.body, createdBy: req.user.userId });
+    const academicYear = getCurrentAcademicYear();
+    const event = await AcademicCalendar.create({ ...req.body, academicYear, createdBy: req.user.userId });
     res.status(201).json({ success: true, event });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });

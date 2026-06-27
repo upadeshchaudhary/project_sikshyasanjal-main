@@ -237,3 +237,18 @@ export function compareBsDates(d1, d2) {
   if (m1 !== m2) return m1 - m2;
   return day1 - day2;
 }
+
+export function getCurrentAcademicYear() {
+  const bsDate = adToBs(new Date().toISOString().split("T")[0]);
+  if (bsDate) {
+    return bsDate.split("-")[0];
+  }
+  const now = new Date();
+  const adYear = now.getFullYear();
+  const adMon = now.getMonth() + 1;
+  const adDay = now.getDate();
+  const bsYear = (adMon > 4 || (adMon === 4 && adDay >= 14))
+    ? adYear + 57
+    : adYear + 56;
+  return String(bsYear);
+}

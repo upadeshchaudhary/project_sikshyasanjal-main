@@ -1,6 +1,7 @@
 // backend/controllers/dashboard/dashboardController.js
 const mongoose = require("mongoose");
 const { User }  = require("../../models");
+const { getCurrentAcademicYear } = require("../../utils/calendar");
 
 // GET /api/dashboard/admin
 exports.getAdminDashboardStats = async (req, res) => {
@@ -33,7 +34,7 @@ exports.getAdminDashboardStats = async (req, res) => {
       : 0;
     const pendingAmount = feeSummary[0] ? feeSummary[0].totalAmount - feeSummary[0].totalPaid : 0;
 
-    const currentYear = new Date().getFullYear() + 57; // Approximate BS year
+    const currentYear = getCurrentAcademicYear();
 
     res.json({
       success: true,

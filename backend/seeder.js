@@ -21,6 +21,7 @@ const FeeRecord        = require("./models/FeeRecordSchema");
 const Message          = require("./models/MessageSchema");
 const ClassRoutine     = require("./models/ClassRoutineSchema");
 const AcademicCalendar = require("./models/AcademicCalendarSchema");
+const { getCurrentAcademicYear } = require("./utils/calendar");
 
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/sikshyasanjal";
 
@@ -111,7 +112,7 @@ async function seed() {
     address:      "Dharan-5, Sunsari, Koshi Province",
     phone:        "+977025520123",
     email:        "info@saraswati.edu.np",
-    academicYear: "2081-82",
+    academicYear: getCurrentAcademicYear(),
     classes:      ["9A", "9B", "10A", "10B"],
     subjects:     [
       "English", "Nepali", "Maths", "Science",
@@ -463,7 +464,7 @@ async function seed() {
         paidDate,
         paidDateBs,
         paymentMethod,
-        academicYear:  "2081-82",
+        academicYear:  getCurrentAcademicYear(),
         recordedBy:    admin._id,
       });
     }
@@ -645,7 +646,7 @@ async function seed() {
     school: sId,
     class: "10A",
     classTeacher: classTeacherObj._id, // ✅ FIXED
-    academicYear: "2081-82",
+    academicYear: getCurrentAcademicYear(),
     subjectTeacherMap,
     monday: buildDay([...class10ARoutine.monday]),
     tuesday: buildDay([...class10ARoutine.tuesday]),
@@ -679,7 +680,7 @@ async function seed() {
   ];
 
   await AcademicCalendar.insertMany(
-    calendarEvents.map(e => ({ ...e, school: sId, academicYear: "2081-82", createdBy: admin._id }))
+    calendarEvents.map(e => ({ ...e, school: sId, academicYear: getCurrentAcademicYear(), createdBy: admin._id }))
   );
   console.log(`📆 ${calendarEvents.length} calendar events created`);
 

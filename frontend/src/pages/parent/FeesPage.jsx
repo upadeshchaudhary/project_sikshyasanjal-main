@@ -3,12 +3,13 @@ import Topbar from "../../components/Topbar";
 import { useApp } from "../../context/AppContext";
 import axios from "axios";
 import toast from "react-hot-toast";
-import { adToBs, bsToAd, validateBsDate, compareBsDates } from "../../utils/calendar";
+import { adToBs, bsToAd, validateBsDate, compareBsDates, getCurrentAcademicYear } from "../../utils/calendar";
 import {
   CheckCircle, X, Plus, CreditCard,
   ChevronLeft, ChevronRight, AlertCircle,
   TrendingDown, TrendingUp, RefreshCw, CalendarDays
 } from "lucide-react";
+import BsDatePicker from "../../components/BsDatePicker";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const STATUSES = ["all", "paid", "partially_paid", "pending", "overdue"];
@@ -205,7 +206,7 @@ function AddFeeModal({ classes, onClose, onSaved }) {
   const [selClass,  setSelClass]  = useState(classes[0] || "");
   const [form,      setForm]      = useState({
     student: "", amount: "", dueDate: "", dueDateBs: "",
-    feeType: "tuition", academicYear: "",
+    feeType: "tuition", academicYear: getCurrentAcademicYear(),
   });
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -219,7 +220,7 @@ function AddFeeModal({ classes, onClose, onSaved }) {
         setStudents(list);
         if (list.length > 0) {
            const first = list[0];
-           setForm(p => ({ ...p, student: first._id, academicYear: first.admissionYear || "" }));
+           setForm(p => ({ ...p, student: first._id }));
         }
       })
       .catch(() => setStudents([]));
@@ -228,10 +229,7 @@ function AddFeeModal({ classes, onClose, onSaved }) {
   const set = (k, v) => {
     let updates = { [k]: v };
 
-    if (k === "student") {
-      const s = students.find(x => x._id === v);
-      if (s) updates.academicYear = s.admissionYear || "";
-    }
+    // Academic year is fixed to current year, do not link to admission year
 
     if (k === "dueDate") {
       const bs = adToBs(v);
@@ -404,46 +402,21 @@ function AddFeeModal({ classes, onClose, onSaved }) {
                   onBlur={handleBsDateBlur}
                   style={{ flex: 1 }}
                 />
-                <button
-                  type="button"
-                  className="btn btn-outline"
-                  title="Choose from calendar"
-                  onClick={() => {
-                    if (dateInputRef.current) {
-                      if (dateInputRef.current.showPicker) {
-                        dateInputRef.current.showPicker();
-                      } else {
-                        dateInputRef.current.click();
-                      }
-                    }
-                  }}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "42px", height: "42px", padding: 0 }}
-                >
-                  <CalendarDays size={16} />
-                </button>
-                <input
-                  type="date"
-                  ref={dateInputRef}
-                  value={form.dueDate ? form.dueDate.substring(0, 10) : ""}
-                  onChange={e => set("dueDate", e.target.value)}
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    top: 0,
-                    width: "42px",
-                    height: "42px",
-                    opacity: 0,
-                    pointerEvents: "none",
+                <BsDatePicker
+                  value={form.dueDateBs}
+                  onChange={val => {
+                    set("dueDateBs", val);
+                    const ad = bsToAd(val);
+                    if (ad) set("dueDate", ad);
                   }}
                 />
               </div>
             </Field>
             <Field label="Academic Year (BS) *" error={errors.academicYear}>
               <input className={`form-input mono ${errors.academicYear ? "error" : ""}`}
-                placeholder="Admission Year"
                 value={form.academicYear} 
                 disabled 
-                title="Academic year is automatically linked to the student's admission year." />
+                title="Academic year is set to the current year." />
             </Field>
           </div>
         </div>

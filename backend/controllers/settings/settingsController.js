@@ -2,6 +2,7 @@
 const mongoose = require("mongoose");
 const bcrypt   = require("bcryptjs");
 const { School, User } = require("../../models");
+const { getCurrentAcademicYear } = require("../../utils/calendar");
 
 const SCHOOL_UPDATE_FIELDS = ["address", "phone", "email", "academicYear", "classes", "subjects", "logoUrl", "estYear"];
 
@@ -18,6 +19,7 @@ exports.getSchoolSettings = async (req, res) => {
     ]);
 
     if (!school) return res.status(404).json({ success: false, message: "School not found." });
+    school.academicYear = getCurrentAcademicYear();
     res.json({ success: true, school, admin });
   } catch (err) {
     res.status(500).json({ success: false, message: "Failed to fetch settings." });
@@ -56,6 +58,7 @@ exports.updateSchoolSettings = async (req, res) => {
     const school = await School.findOneAndUpdate({}, { $set: updates }, { new: true, runValidators: true }).select("-__v").lean();
     if (!school) return res.status(404).json({ success: false, message: "School not found." });
 
+    school.academicYear = getCurrentAcademicYear();
     res.json({ success: true, school, message: "School settings updated successfully." });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
